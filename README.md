@@ -1,36 +1,63 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ArchPresent — web editor
 
-## Getting Started
+The client-facing part of ArchPresent: a browser-based editor for turning
+architecture Photoshop presentation templates into ones a non-designer can
+fill in — swap photos, edit text, reorder layers — and export as a
+full-resolution PNG/JPG.
 
-First, run the development server:
+This is a Next.js 16 (App Router) app. Templates themselves are produced by
+the separate PSD-to-web pipeline in [`../scripts`](../scripts) — see that
+repo's README for how a `.psd` becomes the `template.json` + image assets
+this app reads.
+
+## Running it
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000/editor](http://localhost:3000/editor). Pick a
+template with `?template=<name>` (matches a folder under
+`public/templates/`); defaults to `template`.
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+## How it works
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `app/editor/page.jsx` — the main editor component: state, the canvas
+  render loop, and all mouse/drag interaction handling.
+- `app/editor/components/` — the three presentational pieces used by the
+  editor: `TextLayerRow` and `LayerRow` (sidebar rows), `PlaceholderOverlay`
+  (the canvas label shown on empty photo slots).
+- `app/editor/lib/canvas.js` — pure canvas/geometry helpers (word-wrap,
+  image-fit math, mask contour tracing for the dashed selection border).
+  No React, no component state — safe to reason about or test in isolation.
+- `app/editor/lib/constants.js`, `lib/styles.js` — shared config and style
+  helpers.
 
-## Learn More
+**Template data shape** (`public/templates/<name>/template.json`): a flat
+list of `layers` (each with bounds, z-index, and optional `imagePath` /
+`clipPath` / `shadowPath`), plus a `placeholders` array describing which
+layers are user-editable (`PHOTO` / `PLAN` / `MODEL` / `LOGO` / `TEXT`) and
+what mask/shadow assets back them. See `scripts/psd-to-json.py`'s docstring
+for exactly how this gets generated from a PSD's layer names.
 
-To learn more about Next.js, take a look at the following resources:
+**Rendering**: everything is drawn to a single `<canvas>` in `renderCanvas()`
+— layers, shadows, placeholder masks (with a tinted overlay + dashed
+outline when empty), and text. It recomposites the whole scene on every
+edit, throttled via `scheduleRender()` (coalesces bursts — e.g. every
+mousemove during a drag — into one repaint per tick). Export re-runs the
+same function at full PSD resolution instead of the capped preview width.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Known gaps (prototype stage)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+No persistence — state lives only in memory and is lost on refresh. No
+auth. See the git history / commit messages for what's been fixed already;
+nothing further is planned here until the client review has happened and
+scope for the next phase is set.
 
-## Deploy on Vercel
+## Updating this README
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Update this file when the editor's structure changes in a way that would
+mislead someone reading it — new top-level files/folders, a changed data
+shape, a changed rendering approach. Not required for every commit, just
+ones that change how the pieces fit together.

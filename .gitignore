@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local rollback snapshots of template output (see scripts/backup_template.sh)
+# — these duplicate the committed template/ folder, so they stay local
+# rather than bloating repo history.
+/public/templates/backups/
