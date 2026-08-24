@@ -40,7 +40,12 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# local rollback snapshots of template output (see scripts/backup_template.sh)
-# — these duplicate the committed template/ folder, so they stay local
-# rather than bloating repo history.
-/public/templates/backups/
+# Generated template output (images + template.json from
+# scripts/psd-to-json.py), including rollback snapshots from
+# scripts/backup_template.sh. Kept local-only for now, same treatment as
+# the source PSDs: there's no hosting or object storage to publish these
+# to yet, so committing 60MB+ per template just bloats the repo. Once
+# real hosting exists, these should be pushed to object storage (R2/S3)
+# instead of committed here — see the planned scripts/publish_template
+# step.
+/public/templates/

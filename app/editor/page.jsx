@@ -3,9 +3,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { PLACEHOLDER_COLORS, PREVIEW_WIDTH } from "./lib/constants";
 import { flattenLayers, drawImageInBounds, buildFont, traceMaskContour, wrapText, getTextBounds } from "./lib/canvas";
+import { hasPurchased, markPurchased } from "../lib/mockPayment";
 import PlaceholderOverlay from "./components/PlaceholderOverlay";
 import TextLayerRow from "./components/TextLayerRow";
 import LayerRow from "./components/LayerRow";
+import PaywallModal from "./components/PaywallModal";
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
@@ -21,6 +23,8 @@ export default function TemplateEditor() {
   const [exporting,    setExporting]    = useState(false);
   const [loadedCount,  setLoadedCount]  = useState(0);
   const [dropIndicator, setDropIndicator] = useState(null); // { name, position: "above"|"below" } — sidebar drag target
+  const [showPaywall,  setShowPaywall]  = useState(false);
+  const [templateId,   setTemplateId]   = useState("template");
 
   const canvasRef       = useRef();
   const containerRef    = useRef();
@@ -29,6 +33,7 @@ export default function TemplateEditor() {
   const layersRef       = useRef([]);
   const templateRef     = useRef(null);
   const templateBaseRef = useRef("/templates/template");
+  const pendingExportFormatRef = useRef(null);
   const layerImgsRef    = useRef({});
   const clipImgsRef     = useRef({});
   const clipContourRef  = useRef({}); // clipPath -> traced outline points, in full-canvas coords
@@ -78,6 +83,7 @@ export default function TemplateEditor() {
       .then((data) => {
         templateRef.current = data;
         setTemplate(data);
+        setTemplateId(id);
 
         // Separate TEXT placeholders from image placeholders
         const imgPhs  = data.placeholders.filter((p) => p.type !== "TEXT");
@@ -658,7 +664,7 @@ export default function TemplateEditor() {
   }
 
   // ── Export — renders at full PSD resolution ──────────────────────────────
-  async function handleExport(format = "png") {
+  async function performExport(format) {
     const tmpl = templateRef.current;
     if (!tmpl) return;
     setExporting(true);
@@ -690,6 +696,31 @@ export default function TemplateEditor() {
       mimeType,
       format === "jpg" ? 0.95 : undefined
     );
+  }
+
+  // Export is the gated action — you can open and customize a template
+  // freely, but exporting the finished result requires the one-time
+  // per-template purchase (see app/lib/mockPayment.js).
+  function handleExport(format = "png") {
+    if (!hasPurchased(templateId)) {
+      pendingExportFormatRef.current = format;
+      setShowPaywall(true);
+      return;
+    }
+    performExport(format);
+  }
+
+  function handlePaymentSuccess() {
+    markPurchased(templateId);
+    setShowPaywall(false);
+    const format = pendingExportFormatRef.current || "png";
+    pendingExportFormatRef.current = null;
+    performExport(format);
+  }
+
+  function handlePaymentCancel() {
+    pendingExportFormatRef.current = null;
+    setShowPaywall(false);
   }
 
   // ─── Early returns ────────────────────────────────────────────────────────
@@ -825,6 +856,13 @@ export default function TemplateEditor() {
           e.target.value = "";
         }}
       />
+      {showPaywall && (
+        <PaywallModal
+          templateId={templateId}
+          onPay={handlePaymentSuccess}
+          onCancel={handlePaymentCancel}
+        />
+      )}
     </div>
   );
 }
