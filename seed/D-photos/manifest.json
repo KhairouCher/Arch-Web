@@ -1,0 +1,33 @@
+{
+  "id": "D-photos",
+  "photos": [
+    {
+      "file": "small_800x600.jpg",
+      "width": 800,
+      "height": 600,
+      "bytes": 48340,
+      "purpose": "Far too small for any zone: shows the red print warning."
+    },
+    {
+      "file": "medium_1920x1280.jpg",
+      "width": 1920,
+      "height": 1280,
+      "bytes": 141854,
+      "purpose": "Soft in a large zone: shows the orange print warning."
+    },
+    {
+      "file": "sharp_4800x3200.jpg",
+      "width": 4800,
+      "height": 3200,
+      "bytes": 527392,
+      "purpose": "Sharp in most zones at the current print assumptions."
+    },
+    {
+      "file": "huge_12000x8000.jpg",
+      "width": 12000,
+      "height": 8000,
+      "bytes": 2232385,
+      "purpose": "Stress test for memory and upload time."
+    }
+  ]
+}

@@ -2,12 +2,14 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { PLACEHOLDER_COLORS, PREVIEW_WIDTH } from "./lib/constants";
-import { flattenLayers, drawImageInBounds, buildFont, traceMaskContour, wrapText, getTextBounds } from "./lib/canvas";
-import { hasPurchased, markPurchased } from "../lib/mockPayment";
+import { flattenLayers, drawImageInBounds, buildFont, traceMaskContour, wrapText, getTextBounds, drawWatermark, textDirection, loadFonts } from "./lib/canvas";
+import { getUser } from "../lib/mockAuth";
+import { effectiveModel, hasPurchased, spendPoints } from "../lib/mockStore";
+import { useSession } from "../lib/useSession";
 import PlaceholderOverlay from "./components/PlaceholderOverlay";
 import TextLayerRow from "./components/TextLayerRow";
 import LayerRow from "./components/LayerRow";
-import PaywallModal from "./components/PaywallModal";
+import BuyModal from "./components/BuyModal";
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
@@ -23,8 +25,18 @@ export default function TemplateEditor() {
   const [exporting,    setExporting]    = useState(false);
   const [loadedCount,  setLoadedCount]  = useState(0);
   const [dropIndicator, setDropIndicator] = useState(null); // { name, position: "above"|"below" } — sidebar drag target
-  const [showPaywall,  setShowPaywall]  = useState(false);
-  const [templateId,   setTemplateId]   = useState("template");
+  const [showPaywall,  setShowPaywall]  = useState(false);  // the buy dialog
+  const [buyError,     setBuyError]     = useState(null);
+  const [visited,      setVisited]      = useState(() => new Set()); // page indexes the buyer has looked at
+  const [model,        setModel]        = useState(null);  // { id, name, tier, pricePoints, pages: [{ name, template }] }
+  const [pageIndex,    setPageIndex]    = useState(0);
+  const { user, balance } = useSession();
+  const modelIdRef = useRef("template");
+
+  const loadTokenRef      = useRef(0);   // ignores stale page loads when the user clicks arrows quickly
+  const displayedIndexRef = useRef(0);   // page currently on screen
+  const pendingIndexRef   = useRef(0);   // page being navigated to
+  const pageStateRef      = useRef({});  // pageIndex -> { placeholders, textLayers, layers }, so edits survive navigation
 
   const canvasRef       = useRef();
   const containerRef    = useRef();
@@ -72,61 +84,144 @@ export default function TemplateEditor() {
   useEffect(() => { textLayersRef.current   = textLayers;   }, [textLayers]);
   useEffect(() => { layersRef.current       = layers;       }, [layers]);
 
-  // ── Load template.json ────────────────────────────────────────────────────
+  // Repaint once the fonts the text layers use have loaded. Keyed on the set of
+  // fonts, not on the text, so typing does not re-run it.
+  const fontKey = [...new Set(textLayers.map((t) => t.font))].sort().join("|");
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const id     = params.get("template") || "template";
-    templateBaseRef.current = `/templates/${id}`;
+    if (!fontKey) return;
+    let live = true;
+    loadFonts(fontKey.split("|")).then(() => { if (live) scheduleRender(); });
+    return () => { live = false; };
+  }, [fontKey, scheduleRender]);
 
-    fetch(`${templateBaseRef.current}/template.json`)
-      .then((r) => { if (!r.ok) throw new Error("template.json not found"); return r.json(); })
-      .then((data) => {
-        templateRef.current = data;
-        setTemplate(data);
-        setTemplateId(id);
+  // ── Load a model page (template.json + editor state) ──────────────────────
+  // Swaps the whole editor over to pages[index]. The outgoing page's edits are
+  // stashed in pageStateRef first and restored if the user comes back to it.
+  // The swap (state + caches + title) happens only after the fetch resolves,
+  // so the canvas and the title change together.
+  const loadPage = useCallback(async (pages, index) => {
+    const token = ++loadTokenRef.current;
+    const page  = pages[index];
+    const base  = `/templates/${page.template}`;
 
-        // Separate TEXT placeholders from image placeholders
-        const imgPhs  = data.placeholders.filter((p) => p.type !== "TEXT");
-        const txtPhs  = data.placeholders.filter((p) => p.type === "TEXT");
+    const res = await fetch(`${base}/template.json`);
+    if (!res.ok) throw new Error(`template "${page.template}" not found`);
+    const data = await res.json();
+    if (token !== loadTokenRef.current) return;
 
-        const initPhs = imgPhs.map((p) => ({ ...p, userImage: null, previewUrl: null, fitMode: "fill", offset: { x: 0, y: 0 } }));
-        placeholdersRef.current = initPhs;
-        setPlaceholders(initPhs);
+    if (templateRef.current) {
+      pageStateRef.current[displayedIndexRef.current] = {
+        placeholders: placeholdersRef.current,
+        textLayers:   textLayersRef.current,
+        layers:       layersRef.current,
+      };
+    }
 
-        // Initialize text layer state — position starts at placeholder bounds center
-        const initTxt = txtPhs.map((p) => ({
-          id:        p.id,
-          rawId:     p.rawId,
-          layerName: p.layerName,
-          zIndex:    p.zIndex,
-          bounds:    p.bounds,
-          clipPath:  p.clipPath || null,
-          content:   p.defaultText || "",
-          font:      "Arial",
-          size:      Math.max(24, Math.round((p.bounds.height || 60) * 0.4)),
-          color:     "#000000",
-          bold:      false,
-          italic:    false,
-          alignment: "left",
-          pos:       { x: p.bounds.x, y: p.bounds.y + (p.bounds.height || 60) * 0.7 },
-          boxWidth:  Math.max(80, p.bounds.width || 400),
-        }));
-        textLayersRef.current = initTxt;
-        setTextLayers(initTxt);
+    // Image caches are keyed by relative path, which different templates can share.
+    layerImgsRef.current  = {};
+    clipImgsRef.current   = {};
+    clipContourRef.current = {};
+    shadowImgsRef.current = {};
+    setLoadedCount(0);
+    setSelected(null);
 
-        const allLayers = flattenLayers(data.layers).sort((a, b) => b.zIndex - a.zIndex);
-        layersRef.current = allLayers;
-        setLayers(allLayers);
+    templateBaseRef.current = base;
+    templateRef.current     = data;
+    displayedIndexRef.current = index;
+    pendingIndexRef.current   = index;
+    setTemplate(data);
+    setPageIndex(index);
+    setVisited((prev) => new Set(prev).add(index));
 
-        setLoading(false);
+    const saved = pageStateRef.current[index];
+    let initPhs, initTxt, allLayers;
+    if (saved) {
+      initPhs   = saved.placeholders;
+      initTxt   = saved.textLayers;
+      allLayers = saved.layers;
+    } else {
+      // Separate TEXT placeholders from image placeholders
+      const imgPhs = data.placeholders.filter((p) => p.type !== "TEXT");
+      const txtPhs = data.placeholders.filter((p) => p.type === "TEXT");
+
+      initPhs = imgPhs.map((p) => ({ ...p, userImage: null, previewUrl: null, fitMode: "fill", offset: { x: 0, y: 0 } }));
+
+      // Initialize text layer state — position starts at placeholder bounds center
+      initTxt = txtPhs.map((p) => ({
+        id:        p.id,
+        rawId:     p.rawId,
+        layerName: p.layerName,
+        zIndex:    p.zIndex,
+        bounds:    p.bounds,
+        clipPath:  p.clipPath || null,
+        content:   p.defaultText || "",
+        font:      "Arial",
+        size:      Math.max(24, Math.round((p.bounds.height || 60) * 0.4)),
+        color:     "#000000",
+        bold:      false,
+        italic:    false,
+        alignment: "left",
+        pos:       { x: p.bounds.x, y: p.bounds.y + (p.bounds.height || 60) * 0.7 },
+        boxWidth:  Math.max(80, p.bounds.width || 400),
+      }));
+
+      allLayers = flattenLayers(data.layers).sort((a, b) => b.zIndex - a.zIndex);
+    }
+
+    placeholdersRef.current = initPhs;
+    setPlaceholders(initPhs);
+    textLayersRef.current = initTxt;
+    setTextLayers(initTxt);
+    layersRef.current = allLayers;
+    setLayers(allLayers);
+
+    setLoading(false);
+  }, []);
+
+  // ── Resolve the model, then load its first page ───────────────────────────
+  // /editor?model=<id> reads public/models/<id>.json. The older
+  // /editor?template=<id> still works and is treated as a one-page model.
+  useEffect(() => {
+    const params     = new URLSearchParams(window.location.search);
+    const modelId    = params.get("model");
+    const templateParam = params.get("template") || "template";
+
+    const manifest = modelId
+      ? fetch(`/models/${modelId}.json`).then((r) => {
+          if (!r.ok) throw new Error(`model "${modelId}" not found`);
+          return r.json();
+        })
+      : Promise.resolve({ name: templateParam, pages: [{ name: "Page 1", template: templateParam }] });
+
+    manifest
+      .then((m) => {
+        if (!m.pages?.length) throw new Error("model has no pages");
+        // The model's id is its file name, or "template-<id>" for the one-page link.
+        const id = modelId || `template-${templateParam}`;
+        modelIdRef.current = id;
+        setModel({ id, tier: "architect", pricePoints: 1000, ...m });
+        return loadPage(m.pages, 0);
       })
       .catch((err) => { setError(err.message); setLoading(false); });
-  }, []);
+  }, [loadPage]);
+
+  function goToPage(delta) {
+    if (!model) return;
+    const next = pendingIndexRef.current + delta;
+    if (next < 0 || next >= model.pages.length) return;
+    pendingIndexRef.current = next;
+    loadPage(model.pages, next).catch((err) => setError(err.message));
+  }
+  const goToIndex = (i) => goToPage(i - pendingIndexRef.current);
 
   // ── Load images ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!template) return;
     const base   = templateBaseRef.current;
+    // The editor only draws a ~1800 px preview, so it loads the small copies the
+    // converter wrote to previews/. Templates converted before that existed have
+    // no meta.previews and load the full-size files as before.
+    const root   = template.meta.previews ? `${base}/${template.meta.previews.path}` : base;
     const toLoad = flattenLayers(template.layers).filter((l) => l.imagePath).sort((a, b) => a.zIndex - b.zIndex);
     let cancelled = false;
 
@@ -135,9 +230,9 @@ export default function TemplateEditor() {
         if (cancelled) break;
         await new Promise((resolve) => {
           const img = new Image();
-          img.onload = () => { layerImgsRef.current[layer.imagePath] = img; setLoadedCount((n) => n + 1); scheduleRender(); resolve(); };
+          img.onload = () => { if (cancelled) { resolve(); return; } layerImgsRef.current[layer.imagePath] = img; setLoadedCount((n) => n + 1); scheduleRender(); resolve(); };
           img.onerror = () => resolve();
-          img.src = `${base}/${layer.imagePath}`;
+          img.src = `${root}/${layer.imagePath}`;
         });
       }
     }
@@ -146,20 +241,21 @@ export default function TemplateEditor() {
     clipPaths.forEach((cp) => {
       const img = new Image();
       img.onload  = () => {
+        if (cancelled) return;
         clipImgsRef.current[cp] = img;
         clipContourRef.current[cp] = traceMaskContour(img, template.meta.canvasWidth, template.meta.canvasHeight);
         scheduleRender();
       };
       img.onerror = () => {};
-      img.src = `${base}/${cp}`;
+      img.src = `${root}/${cp}`;
     });
 
     const shadowPaths = [...new Set(template.placeholders.map((p) => p.shadowPath).filter(Boolean))];
     shadowPaths.forEach((sp) => {
       const img = new Image();
-      img.onload  = () => { shadowImgsRef.current[sp] = img; scheduleRender(); };
+      img.onload  = () => { if (cancelled) return; shadowImgsRef.current[sp] = img; scheduleRender(); };
       img.onerror = () => {};
-      img.src = `${base}/${sp}`;
+      img.src = `${root}/${sp}`;
     });
 
     load();
@@ -236,6 +332,7 @@ export default function TemplateEditor() {
         ctx.font         = buildFont({ ...t, size: scaledSize });
         ctx.fillStyle    = t.color;
         ctx.textAlign    = t.alignment;
+        ctx.direction    = textDirection(t.content);
         ctx.textBaseline = "alphabetic";
 
         // Word wrap — boxWidth is the user-resizable text box width, the
@@ -340,6 +437,15 @@ export default function TemplateEditor() {
 
       ctx.globalAlpha = 1;
     }
+
+    // Models the signed-in buyer has not bought stay watermarked on every
+    // render. Exports only ever run for a bought model (see handleExport), so
+    // this check alone keeps the watermark off real downloads without a
+    // separate "is this an export" flag.
+    const buyer = getUser();
+    if (!(buyer && hasPurchased(buyer.id, modelIdRef.current))) {
+      drawWatermark(ctx, canvasWidth, canvasHeight);
+    }
   }
 
   // Keep the ref pointing at the latest renderCanvas closure (which reads
@@ -433,7 +539,7 @@ export default function TemplateEditor() {
       if (hit) {
         panningRef.current = { type: "image", id: ph.id, startX: e.clientX, startY: e.clientY, startOffsetX: ph.offset?.x || 0, startOffsetY: ph.offset?.y || 0 };
         canvasRef.current.style.cursor = "grabbing";
-        setSelected(null); // clicking something else hides the text box
+        setSelected(layer ? layer.name : null); // selects the row; also hides any text box
         return;
       }
     }
@@ -513,6 +619,7 @@ export default function TemplateEditor() {
       }
 
       if (hit) {
+        setSelected(layer.name);
         pendingUploadIdRef.current = ph.id;
         uploadInputRef.current?.click();
         return;
@@ -594,7 +701,9 @@ export default function TemplateEditor() {
   }
 
   function reorderPlaceholder(name, direction) {
-    const list = layersRef.current;
+    // Only editable layers are listed, so step to the neighbouring editable
+    // one (static layers between them keep their own z-index).
+    const list = layersRef.current.filter((l) => l.placeholder);
     const idx  = list.findIndex((l) => l.name === name);
     const swap = direction === "up" ? idx - 1 : idx + 1;
     if (swap < 0 || swap >= list.length) return;
@@ -663,11 +772,32 @@ export default function TemplateEditor() {
     setDropIndicator(null);
   }
 
+  // The export must use the full-size layers, but the editor only holds the
+  // small previews. Loads the full-size set on demand, for the export only.
+  // (Until the server renders exports, T-023, this peak memory is unavoidable.)
+  async function loadFullImages(tmpl) {
+    const base = templateBaseRef.current;
+    const load = (p) => new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);
+      img.src = `${base}/${p}`;
+    });
+    const layers = {}, clips = {}, shadows = {};
+    for (const l of flattenLayers(tmpl.layers)) if (l.imagePath && !layers[l.imagePath]) layers[l.imagePath] = await load(l.imagePath);
+    for (const p of tmpl.placeholders) {
+      if (p.clipPath   && !clips[p.clipPath])     clips[p.clipPath]     = await load(p.clipPath);
+      if (p.shadowPath && !shadows[p.shadowPath]) shadows[p.shadowPath] = await load(p.shadowPath);
+    }
+    return { layers, clips, shadows };
+  }
+
   // ── Export — renders at full PSD resolution ──────────────────────────────
   async function performExport(format) {
     const tmpl = templateRef.current;
     if (!tmpl) return;
     setExporting(true);
+    await loadFonts(textLayersRef.current.map((t) => t.font));
     await new Promise((r) => setTimeout(r, 50));
 
     // Create an offscreen full-res canvas
@@ -676,11 +806,26 @@ export default function TemplateEditor() {
     fullCanvas.width    = canvasWidth;
     fullCanvas.height   = canvasHeight;
 
+    // Templates with previews: swap in the full-size images for this render only.
+    const previewImgs = tmpl.meta.previews
+      ? { layers: layerImgsRef.current, clips: clipImgsRef.current, shadows: shadowImgsRef.current }
+      : null;
+    if (previewImgs) {
+      const full = await loadFullImages(tmpl);
+      layerImgsRef.current = full.layers; clipImgsRef.current = full.clips; shadowImgsRef.current = full.shadows;
+    }
+
     // Temporarily swap canvasRef to the full-res canvas, render, then swap back
     const originalCanvas     = canvasRef.current;
     canvasRef.current        = fullCanvas;
-    renderCanvas(true);  // full = true → previewScale = 1
-    canvasRef.current        = originalCanvas;
+    try {
+      renderCanvas(true);  // full = true → previewScale = 1
+    } finally {
+      canvasRef.current      = originalCanvas;
+      if (previewImgs) {
+        layerImgsRef.current = previewImgs.layers; clipImgsRef.current = previewImgs.clips; shadowImgsRef.current = previewImgs.shadows;
+      }
+    }
 
     const mimeType = format === "jpg" ? "image/jpeg" : "image/png";
     fullCanvas.toBlob(
@@ -690,7 +835,7 @@ export default function TemplateEditor() {
         a.href = url; a.download = `presentation.${format}`; a.click();
         URL.revokeObjectURL(url);
         setExporting(false);
-        // Re-render preview canvas
+        // Re-render the preview canvas
         renderCanvas();
       },
       mimeType,
@@ -698,34 +843,46 @@ export default function TemplateEditor() {
     );
   }
 
-  // Export is the gated action — you can open and customize a template
-  // freely, but exporting the finished result requires the one-time
-  // per-template purchase (see app/lib/mockPayment.js).
+  // Export is the gated action: anyone can open and customize a model, but
+  // exporting needs it bought with points (see lib/mockStore.js).
   function handleExport(format = "png") {
-    if (!hasPurchased(templateId)) {
-      pendingExportFormatRef.current = format;
-      setShowPaywall(true);
+    const buyer = getUser();
+    const modelId = modelIdRef.current;
+    if (buyer && hasPurchased(buyer.id, modelId)) {
+      performExport(format);
       return;
     }
-    performExport(format);
+    pendingExportFormatRef.current = format;
+    setBuyError(null);
+    setShowPaywall(true);
   }
 
-  function handlePaymentSuccess() {
-    markPurchased(templateId);
+  // The buyer pressed Buy: spend the points, then run the export they asked for.
+  function handleBuy() {
+    const buyer = getUser();
+    if (!buyer || !model) return;
+    try {
+      spendPoints(buyer.id, effectiveModel(model));
+    } catch (e) {
+      setBuyError(e.message);
+      return;
+    }
+    setBuyError(null);
     setShowPaywall(false);
+    scheduleRender(); // the watermark comes off
     const format = pendingExportFormatRef.current || "png";
     pendingExportFormatRef.current = null;
     performExport(format);
   }
 
-  function handlePaymentCancel() {
+  function handleBuyCancel() {
     pendingExportFormatRef.current = null;
     setShowPaywall(false);
   }
 
   // ─── Early returns ────────────────────────────────────────────────────────
-  if (loading) return <div style={S.centered}><p style={{ color: "#aaa", fontFamily: "system-ui" }}>Loading template...</p></div>;
-  if (error)   return <div style={S.centered}><p style={{ color: "#f87171", fontFamily: "system-ui" }}>Error: {error}</p></div>;
+  if (loading) return <div style={S.centered}><p style={{ color: "var(--ink-muted)", fontFamily: "var(--font-sans)" }}>Loading template...</p></div>;
+  if (error)   return <div style={S.centered}><p style={{ color: "var(--danger)", fontFamily: "var(--font-sans)" }}>Error: {error}</p></div>;
 
   const ps_      = Math.min(1, PREVIEW_WIDTH / template.meta.canvasWidth);
   const previewW = Math.round(template.meta.canvasWidth  * ps_);
@@ -737,27 +894,31 @@ export default function TemplateEditor() {
   // calling setState synchronously inside the image-loading effect.
   const totalLayers = flattenLayers(template.layers).filter((l) => l.imagePath).length;
   const allLoaded = totalLayers > 0 && loadedCount >= totalLayers;
+  const hasPages  = model.pages.length > 1;
 
   // Build combined layers list for sidebar
   // Text layers appear in the layers list too (by their layer entry)
-  const sidebarLayers = layers;
+  const sidebarLayers = layers.filter((l) => l.placeholder); // only what the buyer can edit
 
   return (
     <div style={S.root}>
       <div style={S.topbar}>
         <div style={S.topbarLeft}>
           <span style={S.logo}>ArchPresent</span>
-          <span style={S.templateName}>{template.meta.source}</span>
+          <h1 style={S.modelTitle} title={template.meta.source}>
+            {model.name}
+            <span style={S.pageTitle}> ({model.pages[pageIndex]?.name})</span>
+          </h1>
           {!allLoaded && totalLayers > 0 && (
-            <span style={{ fontSize: 11, color: "#555", fontFamily: "monospace" }}>
+            <span style={{ fontSize: "var(--fs-11)", color: "var(--ink-subtle)", fontFamily: "var(--font-mono)" }}>
               Loading {loadedCount}/{totalLayers}...
             </span>
           )}
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button style={{ ...S.btn, background: "#2a1f0a", color: "#f59e0b", borderColor: "#4a3510" }} onClick={renderCanvas}>Apply</button>
+          <button style={{ ...S.btn, background: "var(--warn-bg)", color: "var(--warn)", borderColor: "var(--warn-line)" }} onClick={renderCanvas}>Apply</button>
           <button style={S.btn} onClick={() => handleExport("png")} disabled={exporting}>{exporting ? "Exporting..." : "Export PNG"}</button>
-          <button style={{ ...S.btn, background: "#1d2d1d", color: "#4ade80", borderColor: "#2d4d2d" }} onClick={() => handleExport("jpg")} disabled={exporting}>Export JPG</button>
+          <button style={{ ...S.btn, background: "var(--go-bg)", color: "var(--go)", borderColor: "var(--go-line)" }} onClick={() => handleExport("jpg")} disabled={exporting}>Export JPG</button>
         </div>
       </div>
 
@@ -765,9 +926,12 @@ export default function TemplateEditor() {
         <div style={S.sidebar}>
           <div style={S.sidebarHeader}>
             Layers <span style={S.badge}>{sidebarLayers.length}</span>
-            <span style={{ marginLeft: "auto", fontSize: 10, color: "#444", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>top → bottom</span>
+            <span style={{ marginLeft: "auto", fontSize: "var(--fs-10)", color: "var(--ink-faint)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>top → bottom</span>
           </div>
           <div style={{ overflowY: "auto", flex: 1, padding: "8px 10px" }}>
+            {sidebarLayers.length === 0 && (
+              <p style={{ margin: 0, fontSize: "var(--fs-12)", color: "var(--ink-subtle)" }}>This page has nothing to edit.</p>
+            )}
             {sidebarLayers.map((layer) => {
               const isText        = layer.placeholder?.type === "TEXT";
               const isPlaceholder = !!layer.placeholder;
@@ -826,21 +990,43 @@ export default function TemplateEditor() {
           </div>
         </div>
 
-        <div style={S.canvasArea} ref={containerRef}>
-          <div style={{ position: "relative", width: displayW, height: displayH, margin: "auto", boxShadow: "0 8px 40px #0008", flexShrink: 0 }}>
-            <canvas
-              ref={canvasRef}
-              style={{ width: displayW, height: displayH, display: "block", cursor: "default" }}
-              onMouseDown={handleCanvasMouseDown}
-              onMouseMove={handleCanvasMouseMove}
-              onMouseUp={handleCanvasMouseUp}
-              onMouseLeave={handleCanvasMouseUp}
-              onClick={handleCanvasClick}
-            />
-            {placeholders.map((p) =>
-              p.bounds.width > 0 && p.bounds.height > 0 && p.type !== "TEXT" ? (
-                <PlaceholderOverlay key={p.id} placeholder={p} scale={ps_ * scale} />
-              ) : null
+        <div style={S.canvasColumn}>
+          <div style={S.stage}>
+            {hasPages && (
+              <button
+                aria-label="Previous page"
+                style={{ ...S.navArrow, borderRight: "1px solid var(--line)", ...(pageIndex === 0 ? S.navArrowDisabled : null) }}
+                disabled={pageIndex === 0}
+                onClick={() => goToPage(-1)}
+              >‹</button>
+            )}
+
+            <div style={S.canvasArea} ref={containerRef}>
+              <div style={{ position: "relative", width: displayW, height: displayH, margin: "auto", boxShadow: "var(--shadow-canvas)", flexShrink: 0 }}>
+                <canvas
+                  ref={canvasRef}
+                  style={{ width: displayW, height: displayH, display: "block", cursor: "default" }}
+                  onMouseDown={handleCanvasMouseDown}
+                  onMouseMove={handleCanvasMouseMove}
+                  onMouseUp={handleCanvasMouseUp}
+                  onMouseLeave={handleCanvasMouseUp}
+                  onClick={handleCanvasClick}
+                />
+                {placeholders.map((p) =>
+                  p.bounds.width > 0 && p.bounds.height > 0 && p.type !== "TEXT" ? (
+                    <PlaceholderOverlay key={p.id} placeholder={p} scale={ps_ * scale} />
+                  ) : null
+                )}
+              </div>
+            </div>
+
+            {hasPages && (
+              <button
+                aria-label="Next page"
+                style={{ ...S.navArrow, borderLeft: "1px solid var(--line)", ...(pageIndex === model.pages.length - 1 ? S.navArrowDisabled : null) }}
+                disabled={pageIndex === model.pages.length - 1}
+                onClick={() => goToPage(1)}
+              >›</button>
             )}
           </div>
         </div>
@@ -856,11 +1042,17 @@ export default function TemplateEditor() {
           e.target.value = "";
         }}
       />
-      {showPaywall && (
-        <PaywallModal
-          templateId={templateId}
-          onPay={handlePaymentSuccess}
-          onCancel={handlePaymentCancel}
+      {showPaywall && model && (
+        <BuyModal
+          model={effectiveModel(model)}
+          pages={model.pages}
+          visited={visited}
+          user={user}
+          balance={balance}
+          error={buyError}
+          onGoToPage={(i) => { setShowPaywall(false); goToIndex(i); }}
+          onBuy={handleBuy}
+          onCancel={handleBuyCancel}
         />
       )}
     </div>
@@ -868,16 +1060,21 @@ export default function TemplateEditor() {
 }
 
 const S = {
-  root: { display: "flex", flexDirection: "column", height: "100vh", background: "#0a0a0a", color: "#e5e5e5", fontFamily: "system-ui, -apple-system, sans-serif", overflow: "hidden" },
-  centered: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100vh", background: "#0a0a0a" },
-  topbar: { height: 52, background: "#111", borderBottom: "1px solid #222", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", flexShrink: 0 },
-  topbarLeft: { display: "flex", alignItems: "center", gap: 12 },
-  logo: { fontSize: 15, fontWeight: 700, color: "#fff", letterSpacing: "0.02em" },
-  templateName: { fontSize: 12, color: "#555", fontFamily: "monospace" },
-  btn: { padding: "6px 16px", background: "#1a2a3a", color: "#60a5fa", border: "1px solid #1e3a5f", borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "system-ui, sans-serif" },
+  root: { display: "flex", flexDirection: "column", height: "100vh", background: "var(--bg)", color: "var(--ink-body)", fontFamily: "var(--font-sans)", overflow: "hidden" },
+  centered: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100vh", background: "var(--bg)" },
+  topbar: { height: 52, background: "var(--surface)", borderBottom: "1px solid var(--line-faint)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", flexShrink: 0 },
+  topbarLeft: { display: "flex", alignItems: "center", gap: 16, minWidth: 0 },
+  logo: { fontSize: "var(--fs-15)", fontWeight: 700, color: "var(--ink)", letterSpacing: "0.02em" },
+  btn: { padding: "6px 16px", background: "var(--accent-bg)", color: "var(--accent-ink)", border: "1px solid var(--accent-line)", borderRadius: "var(--r-md)", fontSize: "var(--fs-13)", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" },
   body: { display: "flex", flex: 1, overflow: "hidden" },
-  sidebar: { width: 260, flexShrink: 0, background: "#0d0d0d", borderRight: "1px solid #1e1e1e", display: "flex", flexDirection: "column", overflow: "hidden" },
-  sidebarHeader: { padding: "12px 14px", fontSize: 11, fontWeight: 700, color: "#666", letterSpacing: "0.08em", textTransform: "uppercase", borderBottom: "1px solid #1e1e1e", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 },
-  badge: { background: "#1a1a1a", color: "#555", fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 8 },
-  canvasArea: { flex: 1, overflow: "auto", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: 16, background: "#0a0a0a" },
+  sidebar: { order: 2, width: 260, flexShrink: 0, background: "var(--surface-sunken)", borderLeft: "1px solid var(--line)", display: "flex", flexDirection: "column", overflow: "hidden" },
+  sidebarHeader: { padding: "12px 14px", fontSize: "var(--fs-11)", fontWeight: 700, color: "var(--ink-subtle)", letterSpacing: "0.08em", textTransform: "uppercase", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 },
+  badge: { background: "var(--surface-hover)", color: "var(--ink-subtle)", fontSize: "var(--fs-10)", fontWeight: 700, padding: "1px 6px", borderRadius: "var(--r-lg)" },
+  canvasColumn: { flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" },
+  modelTitle: { margin: 0, fontSize: "var(--fs-18)", fontWeight: 700, color: "var(--ink)", letterSpacing: "-0.01em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+  pageTitle: { fontWeight: 500, color: "var(--ink-muted)" },
+  stage: { flex: 1, minHeight: 0, display: "flex" },
+  navArrow: { width: 56, flexShrink: 0, background: "var(--surface-sunken)", border: "none", color: "var(--ink-body)", fontSize: "var(--fs-44)", lineHeight: 1, cursor: "pointer", fontFamily: "var(--font-sans)" },
+  navArrowDisabled: { color: "var(--ink-faint)", cursor: "default" },
+  canvasArea: { flex: 1, overflow: "auto", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: 16, background: "var(--bg)" },
 };

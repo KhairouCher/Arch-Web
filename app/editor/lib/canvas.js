@@ -45,6 +45,63 @@ export function drawImageInBounds(ctx, img, bounds, fitMode, offset, clipMask, c
   }
 }
 
+// Tiled diagonal watermark drawn over an unpurchased template so a
+// screenshot of the working canvas isn't a usable deliverable. Each row is
+// offset by a deterministic (not Math.random) jitter derived from its own
+// index, so the pattern isn't a perfectly even grid — harder to crop or
+// clone-stamp out than a single centered mark — while still rendering
+// identically on every call, so it doesn't jitter/flicker as the canvas
+// re-renders on every edit.
+export function drawWatermark(ctx, width, height, text = "ArchPresent — unpaid preview") {
+  ctx.save();
+  ctx.globalAlpha  = 0.13;
+  ctx.fillStyle    = "#000000";
+  ctx.font         = `bold ${Math.max(12, Math.round(width * 0.022))}px sans-serif`;
+  ctx.textAlign    = "center";
+  ctx.textBaseline = "middle";
+
+  const angle    = -Math.PI / 8;
+  const spacingX = width  / 3.2;
+  const spacingY = height / 5.5;
+
+  let row = 0;
+  for (let y = -spacingY; y < height + spacingY; y += spacingY, row++) {
+    const jitter  = (((row * 37) % 100) / 100 - 0.5) * spacingX;
+    for (let x = -spacingX + jitter; x < width + spacingX; x += spacingX) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      ctx.fillText(text, 0, 0);
+      ctx.restore();
+    }
+  }
+  ctx.restore();
+}
+
+// Base direction of a piece of text, from its first strong letter: Arabic or
+// Hebrew gives "rtl", a Latin letter gives "ltr", and text with neither (digits,
+// punctuation, empty) defaults to "ltr". Used for ctx.direction so Arabic
+// sentences keep their punctuation and numbers on the correct side. The browser
+// already shapes and joins Arabic letters by itself.
+const RTL_LETTER = /[֐-ࣿיִ-﷿ﹰ-﻿]/;
+const LTR_LETTER = /[A-Za-zÀ-ɏͰ-ϿЀ-ӿ]/;
+export function textDirection(text) {
+  for (const ch of String(text || "")) {
+    if (RTL_LETTER.test(ch)) return "rtl";
+    if (LTR_LETTER.test(ch)) return "ltr";
+  }
+  return "ltr";
+}
+
+// Bundled fonts (app/fonts.css) load on first use, and a canvas draws in the
+// fallback font until they have. Resolves once the regular and bold faces of
+// every given family are ready; callers repaint afterwards.
+export function loadFonts(families) {
+  if (typeof document === "undefined" || !document.fonts) return Promise.resolve();
+  const specs = [...new Set(families)].filter(Boolean).flatMap((f) => [`400 16px "${f}"`, `700 16px "${f}"`]);
+  return Promise.all(specs.map((s) => document.fonts.load(s).catch(() => []))).then(() => undefined);
+}
+
 export function buildFont(txt) {
   const style  = `${txt.italic ? "italic " : ""}${txt.bold ? "bold " : ""}`;
   return `${style}${txt.size}px "${txt.font}"`;

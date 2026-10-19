@@ -22,10 +22,10 @@ export default function PlaceholderOverlay({ placeholder, scale }) {
       }}
     >
       <span style={{
-        background: color, color: "#fff",
-        fontSize: Math.max(10, 13 * scale), fontFamily: "system-ui, sans-serif",
+        background: color, color: "var(--on-accent)",
+        fontSize: Math.max(10, 13 * scale), fontFamily: "var(--font-sans)",
         fontWeight: 600, padding: `${2 * scale}px ${6 * scale}px`,
-        borderRadius: 4, whiteSpace: "nowrap", opacity: 0.9,
+        borderRadius: "var(--r-md)", whiteSpace: "nowrap", opacity: 0.9,
       }}>
         + {PLACEHOLDER_LABELS[placeholder.type]}: {placeholder.rawId}
       </span>

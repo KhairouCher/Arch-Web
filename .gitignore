@@ -49,3 +49,6 @@ next-env.d.ts
 # instead of committed here — see the planned scripts/publish_template
 # step.
 /public/templates/
+
+# Generated sample photos (python seed/D-photos/make_photos.py)
+/seed/D-photos/*.jpg
