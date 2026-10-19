@@ -11,10 +11,10 @@ export default function Footer() {
 
 const S = {
   footer: {
-    borderTop: "1px solid #1e1e1e", padding: "28px 24px",
+    borderTop: "1px solid var(--line)", padding: "28px 24px",
     display: "flex", alignItems: "center", justifyContent: "space-between",
     maxWidth: 1100, margin: "0 auto", flexWrap: "wrap", gap: 12,
   },
-  logo: { fontSize: 16, fontWeight: 700, color: "#fff", letterSpacing: "0.02em" },
-  footerText: { fontSize: 13, color: "#555" },
+  logo: { fontSize: "var(--fs-15)", fontWeight: 700, color: "var(--ink)", letterSpacing: "0.02em" },
+  footerText: { fontSize: "var(--fs-13)", color: "var(--ink-subtle)" },
 };

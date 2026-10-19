@@ -1,0 +1,10 @@
+{
+  "name": "Sample Model",
+  "tier": "architect",
+  "pricePoints": 2500,
+  "pages": [
+    { "name": "Cover", "template": "template" },
+    { "name": "Floor Plans", "template": "template" },
+    { "name": "Facades", "template": "template" }
+  ]
+}

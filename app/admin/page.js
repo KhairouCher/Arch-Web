@@ -1,4 +1,7 @@
 import Link from "next/link";
+import AppBar from "../components/AppBar";
+import AdminTabs from "../components/AdminTabs";
+import AdminOnly from "../components/AdminOnly";
 import { getTemplates } from "../lib/templates";
 
 // Internal template-management view — richer/more technical than the
@@ -6,10 +9,9 @@ import { getTemplates } from "../lib/templates";
 // size, raw JSON link). Reads public/templates/ directly off disk, same
 // as the public gallery, so it never goes stale.
 //
-// NOTE: this route has no auth in front of it yet — there's no user
-// system in this app at all. Anyone with the URL can reach it. Fine for
-// now (prototype, single-machine use), but don't treat this as a real
-// admin panel until it's actually gated.
+// NOTE: the admin-only gate (components/AdminOnly.jsx) is a demo: the role
+// comes from the mock sign-in in the browser, so it protects nothing. Real
+// roles and protected admin routes come with task T-010.
 
 function formatBytes(bytes) {
   if (bytes < 1024) return `${bytes} B`;
@@ -34,11 +36,10 @@ export default function AdminPage() {
 
   return (
     <div style={S.page}>
-      <div style={S.topbar}>
-        <span style={S.brand}>ArchPresent <span style={S.brandTag}>Admin</span></span>
-        <Link href="/" style={S.backLink}>← Back to site</Link>
-      </div>
+      <AppBar active="admin" />
+      <AdminTabs active="templates" />
 
+      <AdminOnly>
       <main style={S.main}>
         <div style={S.headRow}>
           <h1 style={S.h1}>Templates</h1>
@@ -88,47 +89,48 @@ export default function AdminPage() {
           </div>
         )}
       </main>
+      </AdminOnly>
     </div>
   );
 }
 
 const S = {
   page: {
-    minHeight: "100vh", background: "#0a0a0a", color: "#e5e5e5",
-    fontFamily: "var(--font-geist-sans), system-ui, -apple-system, sans-serif",
+    minHeight: "100vh", background: "var(--bg)", color: "var(--ink-body)",
+    fontFamily: "var(--font-sans)",
   },
   topbar: {
-    height: 52, background: "#111", borderBottom: "1px solid #222",
+    height: 52, background: "var(--surface)", borderBottom: "1px solid var(--line-faint)",
     display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px",
   },
-  brand: { fontSize: 15, fontWeight: 700, color: "#fff" },
-  brandTag: { color: "#666", fontWeight: 500, marginLeft: 6 },
-  backLink: { fontSize: 13, color: "#999" },
+  brand: { fontSize: "var(--fs-15)", fontWeight: 700, color: "var(--ink)" },
+  brandTag: { color: "var(--ink-subtle)", fontWeight: 500, marginLeft: 6 },
+  backLink: { fontSize: "var(--fs-13)", color: "var(--ink-muted)" },
   main: { maxWidth: 1200, margin: "0 auto", padding: "40px 24px 80px" },
   headRow: { display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 8 },
-  h1: { fontSize: 24, fontWeight: 700, color: "#fff" },
-  summary: { fontSize: 13, color: "#666", fontFamily: "var(--font-geist-mono), monospace" },
-  empty: { fontSize: 14, color: "#999" },
+  h1: { fontSize: "var(--fs-22)", fontWeight: 700, color: "var(--ink)" },
+  summary: { fontSize: "var(--fs-13)", color: "var(--ink-subtle)", fontFamily: "var(--font-mono)" },
+  empty: { fontSize: "var(--fs-14)", color: "var(--ink-muted)" },
   code: {
-    fontFamily: "var(--font-geist-mono), monospace", background: "#161616",
-    padding: "2px 6px", borderRadius: 4, fontSize: 13,
+    fontFamily: "var(--font-mono)", background: "var(--surface-raised)",
+    padding: "2px 6px", borderRadius: "var(--r-md)", fontSize: "var(--fs-13)",
   },
-  tableWrap: { overflowX: "auto", border: "1px solid #1e1e1e", borderRadius: 8 },
-  table: { width: "100%", borderCollapse: "collapse", fontSize: 13 },
+  tableWrap: { overflowX: "auto", border: "1px solid var(--line)", borderRadius: "var(--r-lg)" },
+  table: { width: "100%", borderCollapse: "collapse", fontSize: "var(--fs-13)" },
   th: {
-    textAlign: "left", padding: "10px 14px", background: "#111",
-    color: "#666", fontSize: 11, fontWeight: 700, textTransform: "uppercase",
-    letterSpacing: "0.05em", borderBottom: "1px solid #1e1e1e", whiteSpace: "nowrap",
+    textAlign: "left", padding: "10px 14px", background: "var(--surface)",
+    color: "var(--ink-subtle)", fontSize: "var(--fs-11)", fontWeight: 700, textTransform: "uppercase",
+    letterSpacing: "0.05em", borderBottom: "1px solid var(--line)", whiteSpace: "nowrap",
   },
-  tr: { borderBottom: "1px solid #1a1a1a" },
-  td: { padding: "12px 14px", color: "#ccc", verticalAlign: "middle" },
-  mono: { fontFamily: "var(--font-geist-mono), monospace", fontSize: 12, color: "#999" },
+  tr: { borderBottom: "1px solid var(--line-faint)" },
+  td: { padding: "12px 14px", color: "var(--ink-body)", verticalAlign: "middle" },
+  mono: { fontFamily: "var(--font-mono)", fontSize: "var(--fs-12)", color: "var(--ink-muted)" },
   badgeRow: { display: "flex", gap: 6 },
   badge: {
-    fontSize: 11, padding: "2px 8px", borderRadius: 10,
-    background: "#161616", border: "1px solid #262626", color: "#999",
+    fontSize: "var(--fs-11)", padding: "2px 8px", borderRadius: "var(--r-lg)",
+    background: "var(--surface-raised)", border: "1px solid var(--line-faint)", color: "var(--ink-muted)",
   },
   actionLink: {
-    fontSize: 12, color: "#60a5fa", marginRight: 14, fontWeight: 600,
+    fontSize: "var(--fs-12)", color: "var(--accent-ink)", marginRight: 14, fontWeight: 600,
   },
 };

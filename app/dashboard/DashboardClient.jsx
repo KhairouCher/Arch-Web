@@ -1,121 +1,108 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { getUser, mockSignOut } from "../lib/mockAuth";
-import { TEMPLATE_PRICE_USD } from "../lib/pricing";
+import AppBar from "../components/AppBar";
+import { UI } from "../lib/ui";
+import { useSession } from "../lib/useSession";
+import { effectiveModel, listLedger, listPurchases } from "../lib/mockStore";
+import { formatDate, formatPoints, TIER_LABELS } from "../lib/format";
 
-export default function DashboardClient({ templates }) {
+// The buyer's home: balance, the models they own, recent changes to their
+// points, and the models on offer. Drafts will appear here once the editor
+// saves them (task T-022).
+export default function DashboardClient({ models }) {
   const router = useRouter();
-  const [user, setUser] = useState(undefined); // undefined = not checked yet
+  const { ready, user, balance } = useSession();
 
   useEffect(() => {
-    const u = getUser();
-    if (!u) {
-      router.replace("/login");
-      return;
-    }
-    // localStorage doesn't exist during SSR, so this can only be read
-    // after mount — both the server render and the client's initial
-    // (pre-hydration) render use the `undefined` state above, then this
-    // effect syncs in the real value. Deliberate exception to
-    // set-state-in-effect: skipping the effect here (e.g. reading
-    // localStorage directly during render) would make the client's first
-    // render disagree with the server's and trigger a hydration mismatch.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setUser(u);
-  }, [router]);
+    // Signed-out visitors are sent to sign in rather than shown an empty page.
+    if (ready && !user) router.replace("/login");
+  }, [ready, user, router]);
 
-  function handleSignOut() {
-    mockSignOut();
-    router.push("/login");
-  }
+  if (!ready || !user) return null;
 
-  // Still checking localStorage, or about to redirect — render nothing
-  // rather than flashing dashboard content to a signed-out visitor.
-  if (!user) return null;
+  const purchases = listPurchases(user.id);
+  const recent = listLedger(user.id).slice(0, 5);
+  const available = models.map(effectiveModel).filter((m) => m.published);
 
   return (
-    <div style={S.page}>
-      <div style={S.topbar}>
-        <span style={S.brand}>ArchPresent</span>
-        <div style={S.topbarRight}>
-          <span style={S.userEmail}>{user.email}</span>
-          <button onClick={handleSignOut} style={S.signOutBtn}>Sign out</button>
+    <div style={UI.page}>
+      <AppBar active="dashboard" />
+      <main style={UI.main}>
+        <h1 style={UI.h1}>Welcome, {user.name}</h1>
+        <p style={UI.sub}>Pick a model to start a new presentation, or continue with one you own.</p>
+
+        <div style={UI.grid}>
+          <div style={{ ...UI.card, display: "grid", gap: 6 }}>
+            <span style={UI.small}>Points balance</span>
+            <b style={{ fontSize: "var(--fs-30)", color: "var(--ink)" }}>{formatPoints(balance)}</b>
+            <Link href="/wallet" style={{ ...UI.btnSoft, textAlign: "center" }}>Top up</Link>
+          </div>
+          <div style={{ ...UI.card, display: "grid", gap: 6 }}>
+            <span style={UI.small}>Models you own</span>
+            <b style={{ fontSize: "var(--fs-30)", color: "var(--ink)" }}>{purchases.length}</b>
+            <Link href="/models" style={{ ...UI.btnGhost, textAlign: "center" }}>Browse models</Link>
+          </div>
+          <div style={{ ...UI.card, display: "grid", gap: 6 }}>
+            <span style={UI.small}>Drafts</span>
+            <b style={{ fontSize: "var(--fs-30)", color: "var(--ink)" }}>0</b>
+            <span style={UI.small}>Drafts are kept for one month. Autosave comes with the backend.</span>
+          </div>
         </div>
-      </div>
 
-      <main style={S.main}>
-        <h1 style={S.h1}>Welcome, {user.name}</h1>
-        <p style={S.sub}>Pick a template below to start a new presentation.</p>
-
-        {templates.length === 0 ? (
-          <p style={S.empty}>No templates available yet.</p>
+        <h2 style={UI.h2}>Your models</h2>
+        {purchases.length === 0 ? (
+          <p style={UI.muted}>You have not bought a model yet. Preview any model for free: pages carry a watermark until you buy it.</p>
         ) : (
-          <div style={S.grid}>
-            {templates.map((t) => (
-              <Link key={t.id} href={`/editor?template=${t.id}`} style={S.card}>
-                <div style={S.thumb}>
-                  <span style={S.thumbLabel}>{t.width} × {t.height}</span>
-                  <span style={S.priceBadge}>${TEMPLATE_PRICE_USD}</span>
-                </div>
-                <div style={S.cardBody}>
-                  <h2 style={S.cardTitle}>{t.id}</h2>
-                  <p style={S.cardMeta}>
-                    {t.photos.length} photo{t.photos.length === 1 ? "" : "s"} · {t.texts.length} text field{t.texts.length === 1 ? "" : "s"}
-                  </p>
-                </div>
-              </Link>
-            ))}
+          <div style={UI.tableWrap}>
+            <table style={UI.table}>
+              <thead><tr>{["Model", "Bought", "Points", ""].map((h) => <th key={h} style={UI.th}>{h}</th>)}</tr></thead>
+              <tbody>
+                {purchases.map((p) => (
+                  <tr key={p.id}>
+                    <td style={UI.td}><b style={{ color: "var(--ink)" }}>{p.modelName}</b></td>
+                    <td style={UI.td}>{formatDate(p.createdAt)}</td>
+                    <td style={UI.td}>{p.pointsSpent.toLocaleString("en-US")}</td>
+                    <td style={UI.td}><Link href={`/editor?model=${p.modelId}`} style={UI.btnSoft}>Open</Link></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <h2 style={UI.h2}>Available models</h2>
+        <div style={UI.grid}>
+          {available.map((m) => (
+            <Link key={m.id} href={`/editor?model=${m.id}`} style={{ ...UI.card, display: "grid", gap: 6 }}>
+              <span style={UI.badge("accent")}>{TIER_LABELS[m.tier] || m.tier}</span>
+              <b style={{ color: "var(--ink)" }}>{m.name}</b>
+              <span style={UI.small}>{m.pages.length} pages · {formatPoints(m.pricePoints)}</span>
+            </Link>
+          ))}
+        </div>
+
+        <h2 style={UI.h2}>Recent points activity</h2>
+        {recent.length === 0 ? (
+          <p style={UI.muted}>Nothing yet.</p>
+        ) : (
+          <div style={UI.tableWrap}>
+            <table style={UI.table}>
+              <tbody>
+                {recent.map((e) => (
+                  <tr key={e.id}>
+                    <td style={UI.td}>{formatDate(e.createdAt)}</td>
+                    <td style={UI.td}>{e.reason}</td>
+                    <td style={{ ...UI.td, fontWeight: 600, color: e.amount < 0 ? "var(--ink-body)" : "var(--go)" }}>{e.amount > 0 ? "+" : ""}{e.amount.toLocaleString("en-US")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </main>
     </div>
   );
 }
-
-const S = {
-  page: {
-    minHeight: "100vh", background: "#0a0a0a", color: "#e5e5e5",
-    fontFamily: "var(--font-geist-sans), system-ui, -apple-system, sans-serif",
-  },
-  topbar: {
-    height: 52, background: "#111", borderBottom: "1px solid #222",
-    display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px",
-  },
-  brand: { fontSize: 15, fontWeight: 700, color: "#fff" },
-  topbarRight: { display: "flex", alignItems: "center", gap: 16 },
-  userEmail: { fontSize: 13, color: "#999" },
-  signOutBtn: {
-    padding: "6px 14px", background: "transparent", color: "#e5e5e5",
-    border: "1px solid #333", borderRadius: 6, fontSize: 13, cursor: "pointer",
-  },
-  main: { maxWidth: 1100, margin: "0 auto", padding: "40px 24px 80px" },
-  h1: { fontSize: 26, fontWeight: 700, color: "#fff", marginBottom: 6 },
-  sub: { fontSize: 14, color: "#999", marginBottom: 32 },
-  empty: { fontSize: 14, color: "#999" },
-  grid: {
-    display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
-    gap: 20,
-  },
-  card: {
-    display: "block", background: "#111", border: "1px solid #1e1e1e",
-    borderRadius: 10, overflow: "hidden",
-  },
-  thumb: {
-    position: "relative", aspectRatio: "4 / 3",
-    background: "linear-gradient(135deg, #1a2a3a, #16161e)",
-    display: "flex", alignItems: "center", justifyContent: "center",
-  },
-  thumbLabel: { fontSize: 12, color: "#556", fontFamily: "var(--font-geist-mono), monospace" },
-  priceBadge: {
-    position: "absolute", top: 10, right: 10,
-    background: "rgba(10,10,10,0.85)", color: "#4ade80",
-    fontSize: 12, fontWeight: 700, padding: "3px 9px", borderRadius: 12,
-    border: "1px solid #2d4d2d",
-  },
-  cardBody: { padding: "14px 16px" },
-  cardTitle: { fontSize: 15, fontWeight: 600, color: "#fff", marginBottom: 4 },
-  cardMeta: { fontSize: 12, color: "#999" },
-};

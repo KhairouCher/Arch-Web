@@ -1,10 +1,8 @@
-import { getTemplates } from "../lib/templates";
+import { getModels } from "../lib/models";
 import DashboardClient from "./DashboardClient";
 
-// Server component fetches the template list (filesystem access, so it
-// can't live in the client component); DashboardClient handles the
-// mock-auth check/redirect and sign-out, which need localStorage.
+// The server reads the model files (filesystem access can't live in the client
+// component). DashboardClient handles the sign-in check, which needs localStorage.
 export default function DashboardPage() {
-  const templates = getTemplates();
-  return <DashboardClient templates={templates} />;
+  return <DashboardClient models={getModels()} />;
 }

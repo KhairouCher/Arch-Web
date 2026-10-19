@@ -1,0 +1,9 @@
+{
+  "name": "Student Sample",
+  "tier": "student",
+  "pricePoints": 1000,
+  "pages": [
+    { "name": "Cover", "template": "template" },
+    { "name": "Plan", "template": "template" }
+  ]
+}

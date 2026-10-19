@@ -60,7 +60,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="how-it-works" style={{ ...S.section, background: "#0d0d0d" }}>
+        <section id="how-it-works" style={{ ...S.section, background: "var(--surface-sunken)" }}>
           <h2 style={S.h2}>How it works</h2>
           <div style={S.stepGrid}>
             {STEPS.map((s) => (
@@ -88,30 +88,30 @@ export default function Home() {
 const S = {
   page: {
     minHeight: "100vh",
-    background: "#0a0a0a",
-    color: "#e5e5e5",
-    fontFamily: "var(--font-geist-sans), system-ui, -apple-system, sans-serif",
+    background: "var(--bg)",
+    color: "var(--ink-body)",
+    fontFamily: "var(--font-sans)",
   },
   hero: { padding: "100px 24px 80px", textAlign: "center" },
   heroInner: { maxWidth: 720, margin: "0 auto" },
   h1: {
-    fontSize: 48, fontWeight: 700, color: "#fff", lineHeight: 1.15,
+    fontSize: "var(--fs-44)", fontWeight: 700, color: "var(--ink)", lineHeight: 1.15,
     letterSpacing: "-0.02em", marginBottom: 20,
   },
-  heroSub: { fontSize: 17, color: "#999", lineHeight: 1.6, marginBottom: 32 },
+  heroSub: { fontSize: "var(--fs-18)", color: "var(--ink-muted)", lineHeight: 1.6, marginBottom: 32 },
   heroCtas: { display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" },
   primaryBtn: {
-    padding: "12px 26px", background: "#3b82f6", color: "#fff",
-    borderRadius: 8, fontSize: 15, fontWeight: 600, display: "inline-block",
+    padding: "12px 26px", background: "var(--accent)", color: "var(--on-accent)",
+    borderRadius: "var(--r-lg)", fontSize: "var(--fs-15)", fontWeight: 600, display: "inline-block",
   },
   secondaryBtn: {
-    padding: "12px 26px", background: "transparent", color: "#e5e5e5",
-    border: "1px solid #333", borderRadius: 8, fontSize: 15, fontWeight: 600,
+    padding: "12px 26px", background: "transparent", color: "var(--ink-body)",
+    border: "1px solid var(--line-strong)", borderRadius: "var(--r-lg)", fontSize: "var(--fs-15)", fontWeight: 600,
     display: "inline-block",
   },
   section: { padding: "80px 24px", maxWidth: 1100, margin: "0 auto" },
   h2: {
-    fontSize: 30, fontWeight: 700, color: "#fff", textAlign: "center",
+    fontSize: "var(--fs-30)", fontWeight: 700, color: "var(--ink)", textAlign: "center",
     marginBottom: 48, letterSpacing: "-0.01em",
   },
   featureGrid: {
@@ -119,18 +119,18 @@ const S = {
     gap: 24,
   },
   featureCard: {
-    padding: 24, background: "#111", border: "1px solid #1e1e1e", borderRadius: 10,
+    padding: 24, background: "var(--surface)", border: "1px solid var(--line)", borderRadius: "var(--r-lg)",
   },
-  featureTitle: { fontSize: 16, fontWeight: 600, color: "#fff", marginBottom: 8 },
-  featureBody: { fontSize: 14, color: "#999", lineHeight: 1.6 },
+  featureTitle: { fontSize: "var(--fs-15)", fontWeight: 600, color: "var(--ink)", marginBottom: 8 },
+  featureBody: { fontSize: "var(--fs-14)", color: "var(--ink-muted)", lineHeight: 1.6 },
   stepGrid: {
     display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
     gap: 32, maxWidth: 1100, margin: "0 auto", padding: "0 24px",
   },
   step: { textAlign: "left" },
   stepNumber: {
-    display: "block", fontSize: 13, fontWeight: 700, color: "#3b82f6",
-    fontFamily: "var(--font-geist-mono), monospace", marginBottom: 10,
+    display: "block", fontSize: "var(--fs-13)", fontWeight: 700, color: "var(--accent)",
+    fontFamily: "var(--font-mono)", marginBottom: 10,
   },
   ctaSection: { padding: "100px 24px", textAlign: "center", maxWidth: 720, margin: "0 auto" },
 };

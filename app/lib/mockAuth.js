@@ -9,6 +9,9 @@
 // opening devtools. It exists purely so the UI flow (sign up → dashboard
 // → sign out → redirected to login) is demonstrable before the real auth
 // architecture (from the planned architecture doc) replaces it wholesale.
+//
+// Demo only: an email that starts with "admin" signs in as an admin, which
+// shows the admin pages. Real roles come from the backend (task T-010).
 
 const KEY = "archpresent_mock_user";
 
@@ -16,14 +19,19 @@ export function getUser() {
   if (typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(KEY);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    const u = JSON.parse(raw);
+    const email = String(u.email || "").toLowerCase();
+    return { id: u.id || email, name: u.name, email, role: u.role || "buyer" };
   } catch {
     return null;
   }
 }
 
 export function mockSignIn(name, email) {
-  localStorage.setItem(KEY, JSON.stringify({ name, email }));
+  const clean = String(email || "").trim().toLowerCase();
+  const role = clean.startsWith("admin") ? "admin" : "buyer";
+  localStorage.setItem(KEY, JSON.stringify({ id: clean, name, email: clean, role }));
 }
 
 export function mockSignOut() {
