@@ -1,0 +1,164 @@
+/* ArchPresent design tokens. Single source of truth for UI styles.
+   The Style Ledger is generated from this file (docs/build-ledger.mjs).
+   Light is the main theme. Dark follows the system setting, or data-theme="dark".
+   Add or change a token here first, then regenerate the ledger, then use it.
+   Not imported by the app yet: moving the existing pages onto these tokens is task T-051. */
+
+:root {
+  /* surfaces */
+  --bg: #f4f5f7;               /* Page background */
+  --surface: #ffffff;          /* Top bars, cards, panels */
+  --surface-sunken: #eceef1;   /* Sidebars, wells, the area around the canvas */
+  --surface-raised: #ffffff;   /* Modals, menus, form fields */
+  --surface-hover: #e6e9ed;    /* Hover on rows and ghost buttons */
+
+  /* lines */
+  --line-faint: #e6e8eb;       /* Hairlines inside a panel */
+  --line: #d9dce1;             /* Borders of panels and cards */
+  --line-strong: #b9bfc8;      /* Borders of form fields and ghost buttons */
+
+  /* ink */
+  --ink: #0f1419;              /* Headings and values */
+  --ink-body: #2a313a;         /* Body text */
+  --ink-muted: #5b6572;        /* Secondary text and meta */
+  --ink-subtle: #7d8794;       /* Hints and captions */
+  --ink-faint: #a3acb8;        /* Disabled text and placeholders */
+
+  /* accent */
+  --accent: #2563eb;           /* Solid buttons, selection, links */
+  --on-accent: #ffffff;        /* Text on the solid accent, same in both themes */
+  --accent-ink: #1d4ed8;       /* Text on the soft accent fill */
+  --accent-bg: #e6eefc;        /* Soft accent fill */
+  --accent-line: #bcd0f6;      /* Soft accent border */
+
+  /* semantic */
+  --go: #15803d;               /* Success text and prices */
+  --go-bg: #e3f4e8;            /* Success fill */
+  --go-line: #b5dfc2;          /* Success border */
+  --warn: #b45309;             /* Warning text */
+  --warn-bg: #fbeed7;          /* Warning fill */
+  --warn-line: #efd2a0;        /* Warning border */
+  --danger: #b91c1c;           /* Error text and destructive actions */
+  --danger-bg: #fbe4e2;        /* Error fill */
+  --danger-line: #f0b9b4;      /* Error border */
+
+  /* interaction and depth */
+  --drop: #2563eb;                              /* Drop-target line when reordering layers */
+  --scrim: rgba(15, 20, 25, 0.45);              /* Behind modals */
+  --shadow-canvas: 0 8px 40px rgba(15, 20, 25, 0.18);   /* The editor canvas */
+  --shadow-modal: 0 12px 48px rgba(15, 20, 25, 0.22);   /* Modals */
+
+  /* zone colors: drawn over template art, the same in both themes */
+  --zone-photo: #3b82f6;       /* Photo zone */
+  --zone-plan: #10b981;        /* Floor plan zone */
+  --zone-model: #f59e0b;       /* 3D model zone */
+  --zone-text: #8b5cf6;        /* Text zone */
+  --zone-logo: #ef4444;        /* Logo zone */
+
+  /* type */
+  --font-sans: var(--font-geist-sans), system-ui, -apple-system, sans-serif;   /* Text */
+  --font-mono: var(--font-geist-mono), ui-monospace, Consolas, monospace;      /* IDs, labels, numbers */
+  --fs-10: 10px;               /* Tiny labels */
+  --fs-11: 11px;               /* Uppercase labels, hints */
+  --fs-12: 12px;               /* Meta and small text */
+  --fs-13: 13px;               /* Controls and dense UI */
+  --fs-14: 14px;               /* Body in tools */
+  --fs-15: 15px;               /* Body on the website */
+  --fs-18: 18px;               /* Lead text */
+  --fs-22: 22px;               /* Section titles */
+  --fs-30: 30px;               /* Page titles */
+  --fs-44: 44px;               /* Display */
+  --fw-regular: 400;           /* Body */
+  --fw-medium: 500;            /* Emphasis */
+  --fw-semibold: 600;          /* Controls and titles */
+  --fw-bold: 700;              /* Headings */
+
+  /* radii */
+  --r-sm: 3px;                 /* Chips and tags */
+  --r-md: 6px;                 /* Buttons and form fields */
+  --r-lg: 12px;                /* Cards and modals */
+
+  /* spacing */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+  --sp-8: 48px;
+
+  /* layout */
+  --layout-topbar: 52px;       /* Height of the top bar */
+  --layout-sidebar: 260px;     /* Width of the layer sidebar */
+  --layout-content: 1100px;    /* Maximum width of website content */
+  --layout-arrow: 56px;        /* Width of the page arrows beside the canvas */
+}
+
+:root[data-theme="dark"] {
+  --bg: #0a0a0a;
+  --surface: #111111;
+  --surface-sunken: #0d0d0d;
+  --surface-raised: #161616;
+  --surface-hover: #1a1a1a;
+  --line-faint: #222222;
+  --line: #1e1e1e;
+  --line-strong: #333333;
+  --ink: #ffffff;
+  --ink-body: #e5e5e5;
+  --ink-muted: #999999;
+  --ink-subtle: #666666;
+  --ink-faint: #444444;
+  --accent: #3b82f6;
+  --accent-ink: #60a5fa;
+  --accent-bg: #1a2a3a;
+  --accent-line: #1e3a5f;
+  --go: #4ade80;
+  --go-bg: #1d2d1d;
+  --go-line: #2d4d2d;
+  --warn: #f59e0b;
+  --warn-bg: #2a1f0a;
+  --warn-line: #4a3510;
+  --danger: #f87171;
+  --danger-bg: #2a0a0a;
+  --danger-line: #5a1a1a;
+  --drop: #ffffff;
+  --scrim: rgba(0, 0, 0, 0.6);
+  --shadow-canvas: 0 8px 40px rgba(0, 0, 0, 0.53);
+  --shadow-modal: 0 12px 48px rgba(0, 0, 0, 0.67);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0a0a0a;
+    --surface: #111111;
+    --surface-sunken: #0d0d0d;
+    --surface-raised: #161616;
+    --surface-hover: #1a1a1a;
+    --line-faint: #222222;
+    --line: #1e1e1e;
+    --line-strong: #333333;
+    --ink: #ffffff;
+    --ink-body: #e5e5e5;
+    --ink-muted: #999999;
+    --ink-subtle: #666666;
+    --ink-faint: #444444;
+    --accent: #3b82f6;
+    --accent-ink: #60a5fa;
+    --accent-bg: #1a2a3a;
+    --accent-line: #1e3a5f;
+    --go: #4ade80;
+    --go-bg: #1d2d1d;
+    --go-line: #2d4d2d;
+    --warn: #f59e0b;
+    --warn-bg: #2a1f0a;
+    --warn-line: #4a3510;
+    --danger: #f87171;
+    --danger-bg: #2a0a0a;
+    --danger-line: #5a1a1a;
+    --drop: #ffffff;
+    --scrim: rgba(0, 0, 0, 0.6);
+    --shadow-canvas: 0 8px 40px rgba(0, 0, 0, 0.53);
+    --shadow-modal: 0 12px 48px rgba(0, 0, 0, 0.67);
+  }
+}
