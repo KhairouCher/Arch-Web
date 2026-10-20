@@ -131,8 +131,8 @@ server export (T-023) will replace this with real job progress.
 ## Known gaps
 
 No real accounts or payment. Drafts are saved in the browser only (see Drafts above), so
-they are not shared between devices. A purchase allows unlimited exports (Plan Open 5,
-answered), so the browser prototype keeps no export count. The Build Log has
+they are not shared between devices. The prototype allows unlimited exports (Khairou's
+proposal for Plan Open 5, not yet confirmed by Said), so it keeps no export count. The Build Log has
 the full list.
 
 ## Updating this README
