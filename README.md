@@ -29,7 +29,8 @@ from [`../docs/project-docs.json`](../docs/project-docs.json).
 npm install
 npm run dev          # http://localhost:3000
 npm run lint
-node --test app/editor/lib/*.test.mjs    # unit tests
+npm test               # unit tests (drawing and print-quality helpers)
+npm run test:db        # loads db/schema.sql into PGlite and runs 54 checks
 ```
 
 Demo sign-in: any email works; an email starting with `admin` signs in as an
