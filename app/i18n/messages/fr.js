@@ -109,7 +109,7 @@ const messages = {
   "dash.owned": "Modèles achetés",
   "dash.browse": "Parcourir les modèles",
   "dash.drafts": "Brouillons",
-  "dash.draftsNote": "Les brouillons sont conservés un mois. L’enregistrement automatique arrive avec le serveur.",
+  "dash.draftsNote": "Enregistrés automatiquement. Un brouillon est supprimé un mois après son dernier enregistrement.",
   "dash.yourModels": "Vos modèles",
   "dash.noneBought": "Vous n’avez encore acheté aucun modèle. Testez n’importe quel modèle gratuitement : les pages portent un filigrane tant que vous ne l’avez pas acheté.",
   "dash.colModel": "Modèle",
@@ -266,6 +266,20 @@ const messages = {
   "buy.confirm": "Acheter pour {price}",
   "buy.cancel": "Annuler",
   "buy.dialog": "Acheter ce modèle",
+
+  "draft.saving": "Enregistrement...",
+  "draft.saved": "Brouillon enregistré {when}.",
+  "draft.keptUntil": "Les brouillons sont conservés un mois après le dernier enregistrement. Celui-ci est conservé jusqu’au {date}.",
+  "draft.restored": "Brouillon restauré (enregistré {when}).",
+  "draft.startOver": "Recommencer",
+  "draft.confirmStartOver": "Abandonner ce brouillon et recommencer ?",
+  "draft.guest": "Connectez-vous pour enregistrer votre travail en brouillon.",
+  "draft.delete": "Supprimer",
+  "draft.confirmDelete": "Supprimer ce brouillon et ses photos ?",
+  "draft.colSaved": "Dernier enregistrement",
+  "draft.colDeleted": "Supprimé le",
+  "dash.yourDrafts": "Vos brouillons",
+  "dash.noDrafts": "Aucun brouillon pour le moment. Votre travail est enregistré automatiquement pendant que vous modifiez.",
 };
 
 export default messages;

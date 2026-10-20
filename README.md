@@ -59,6 +59,13 @@ admin. `buyer1@example.com` starts with 20,000 points.
   estimate), `TextLayerRow` (both collapse to type and name until selected;
   the list is on the right and shows editable layers only), `PlaceholderOverlay`, `BuyModal` (review every page,
   then buy with points).
+- Drafts (browser-only placeholder for T-022): `app/lib/mockDrafts.js` keeps a
+  signed-in user's edits in localStorage and `app/lib/photoStore.js` their photos
+  in IndexedDB. The editor saves about 1.5 s after the last change and when the
+  tab is hidden or closed, restores the draft on open (on the page the user left),
+  and a draft is deleted one month after its last save with its photos.
+  `app/editor/lib/draftState.js` holds the pure parts (what a draft keeps, how it
+  goes back onto a page) and is tested. The dashboard lists and deletes drafts.
 - `app/editor/lib/` — `canvas.js` (drawing helpers, watermark, text direction),
   `printQuality.js` (how sharp a photo prints in its zone), `constants.js`,
   `styles.js`. The `*.test.mjs` files test the pure ones.
@@ -115,8 +122,8 @@ not bought. Export re-runs `renderCanvas(true)` at full size.
 
 ## Known gaps
 
-No real accounts, saved drafts or payment, and editing state is lost on refresh
-until drafts exist (T-022). A purchase allows unlimited exports (Plan Open 5,
+No real accounts or payment. Drafts are saved in the browser only (see Drafts above), so
+they are not shared between devices. A purchase allows unlimited exports (Plan Open 5,
 answered), so the browser prototype keeps no export count. The Build Log has
 the full list.
 

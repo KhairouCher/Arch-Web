@@ -111,7 +111,7 @@ const messages = {
   "dash.owned": "Models you own",
   "dash.browse": "Browse models",
   "dash.drafts": "Drafts",
-  "dash.draftsNote": "Drafts are kept for one month. Autosave comes with the backend.",
+  "dash.draftsNote": "Saved automatically. A draft is deleted one month after its last save.",
   "dash.yourModels": "Your models",
   "dash.noneBought": "You have not bought a model yet. Preview any model for free: pages carry a watermark until you buy it.",
   "dash.colModel": "Model",
@@ -268,6 +268,20 @@ const messages = {
   "buy.confirm": "Buy for {price}",
   "buy.cancel": "Cancel",
   "buy.dialog": "Buy this model",
+
+  "draft.saving": "Saving...",
+  "draft.saved": "Draft saved {when}.",
+  "draft.keptUntil": "Drafts are kept for one month after the last save. This one is kept until {date}.",
+  "draft.restored": "Draft restored (saved {when}).",
+  "draft.startOver": "Start over",
+  "draft.confirmStartOver": "Discard this draft and start over?",
+  "draft.guest": "Sign in to save your work as a draft.",
+  "draft.delete": "Delete",
+  "draft.confirmDelete": "Delete this draft and its photos?",
+  "draft.colSaved": "Last saved",
+  "draft.colDeleted": "Deleted on",
+  "dash.yourDrafts": "Your drafts",
+  "dash.noDrafts": "No drafts yet. Your work is saved automatically while you edit.",
 };
 
 export default messages;

@@ -115,7 +115,7 @@ const messages = {
   "dash.owned": "النماذج التي اشتريتها",
   "dash.browse": "تصفّح النماذج",
   "dash.drafts": "المسوّدات",
-  "dash.draftsNote": "تُحفظ المسوّدات لمدة شهر. الحفظ التلقائي يأتي مع الخادم.",
+  "dash.draftsNote": "تُحفظ تلقائيًا. تُحذف المسوّدة بعد شهر من آخر حفظ.",
   "dash.yourModels": "نماذجك",
   "dash.noneBought": "لم تشترِ أي نموذج بعد. يمكنك معاينة أي نموذج مجانًا: تحمل الصفحات علامة مائية إلى أن تشتريه.",
   "dash.colModel": "النموذج",
@@ -280,6 +280,20 @@ const messages = {
   "buy.confirm": "اشترِ بـ {price}",
   "buy.cancel": "إلغاء",
   "buy.dialog": "شراء هذا النموذج",
+
+  "draft.saving": "جارٍ الحفظ...",
+  "draft.saved": "حُفظت المسوّدة {when}.",
+  "draft.keptUntil": "تُحفظ المسوّدات لمدة شهر بعد آخر حفظ. هذه المسوّدة محفوظة حتى {date}.",
+  "draft.restored": "استُعيدت المسوّدة (محفوظة {when}).",
+  "draft.startOver": "ابدأ من جديد",
+  "draft.confirmStartOver": "هل تريد التخلّي عن هذه المسوّدة والبدء من جديد؟",
+  "draft.guest": "سجّل الدخول لحفظ عملك كمسوّدة.",
+  "draft.delete": "حذف",
+  "draft.confirmDelete": "هل تريد حذف هذه المسوّدة وصورها؟",
+  "draft.colSaved": "آخر حفظ",
+  "draft.colDeleted": "تاريخ الحذف",
+  "dash.yourDrafts": "مسوّداتك",
+  "dash.noDrafts": "لا مسوّدات بعد. يُحفظ عملك تلقائيًا أثناء التعديل.",
 };
 
 export default messages;

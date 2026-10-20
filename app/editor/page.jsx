@@ -6,12 +6,64 @@ import { flattenLayers, drawImageInBounds, buildFont, traceMaskContour, wrapText
 import { getUser } from "../lib/mockAuth";
 import { effectiveModel, hasPurchased, spendPoints } from "../lib/mockStore";
 import { useSession } from "../lib/useSession";
+import { getDraft, saveDraft, deleteDraft, purgeExpiredDrafts, draftId } from "../lib/mockDrafts";
+import { photoKey, putPhoto, getPhoto, deletePhoto } from "../lib/photoStore";
+import { serializePage, mergePage } from "./lib/draftState";
 import { useI18n } from "../i18n/I18nProvider";
 import LanguageSwitcher from "../i18n/LanguageSwitcher";
 import PlaceholderOverlay from "./components/PlaceholderOverlay";
 import TextLayerRow from "./components/TextLayerRow";
 import LayerRow from "./components/LayerRow";
 import BuyModal from "./components/BuyModal";
+
+// A page as it starts: every zone empty, text at its default, layers in template order.
+function freshPage(data) {
+  const imgPhs = data.placeholders.filter((p) => p.type !== "TEXT");
+  const txtPhs = data.placeholders.filter((p) => p.type === "TEXT");
+  const initPhs = imgPhs.map((p) => ({ ...p, userImage: null, previewUrl: null, fitMode: "fill", offset: { x: 0, y: 0 } }));
+  // Text layer state: position starts at the placeholder bounds
+  const initTxt = txtPhs.map((p) => ({
+    id:        p.id,
+    rawId:     p.rawId,
+    layerName: p.layerName,
+    zIndex:    p.zIndex,
+    bounds:    p.bounds,
+    clipPath:  p.clipPath || null,
+    content:   p.defaultText || "",
+    font:      "Arial",
+    size:      Math.max(24, Math.round((p.bounds.height || 60) * 0.4)),
+    color:     "#000000",
+    bold:      false,
+    italic:    false,
+    alignment: "left",
+    pos:       { x: p.bounds.x, y: p.bounds.y + (p.bounds.height || 60) * 0.7 },
+    boxWidth:  Math.max(80, p.bounds.width || 400),
+  }));
+  const allLayers = flattenLayers(data.layers).sort((a, b) => b.zIndex - a.zIndex);
+  return { initPhs, initTxt, allLayers };
+}
+
+// Puts a saved draft's edits for this page onto the fresh page, and loads the
+// photos it stored (from IndexedDB). Falls back to the fresh page on any problem,
+// so a damaged draft never blocks the editor.
+async function restoreFromDraft(fresh, draft, index) {
+  const savedPage = draft?.state?.pages?.[String(index)];
+  if (!savedPage) return fresh;
+  try {
+    const merged = mergePage({ placeholders: fresh.initPhs, textLayers: fresh.initTxt, layers: fresh.allLayers }, savedPage);
+    const initPhs = await Promise.all(merged.placeholders.map(async (p) => {
+      if (!merged.photoIds.includes(p.id)) return p;
+      const blob = await getPhoto(photoKey(draft.id, index, p.id));
+      if (!blob) return p;
+      const url = URL.createObjectURL(blob);
+      const img = await new Promise((resolve) => { const i = new Image(); i.onload = () => resolve(i); i.onerror = () => resolve(null); i.src = url; });
+      return img ? { ...p, userImage: img, previewUrl: url } : p;
+    }));
+    return { initPhs, initTxt: merged.textLayers, allLayers: merged.layers };
+  } catch {
+    return fresh;
+  }
+}
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
@@ -32,9 +84,14 @@ export default function TemplateEditor() {
   const [visited,      setVisited]      = useState(() => new Set()); // page indexes the buyer has looked at
   const [model,        setModel]        = useState(null);  // { id, name, tier, pricePoints, pages: [{ name, template }] }
   const [pageIndex,    setPageIndex]    = useState(0);
+  const [saveStatus,   setSaveStatus]   = useState(null);  // null | { kind: "saving" | "saved" | "restored" | "guest", at?, expiresAt? }
   const { user, balance } = useSession();
-  const { t, dir } = useI18n();
+  const { t, dir, fmt } = useI18n();
   const modelIdRef = useRef("template");
+  const modelNameRef = useRef("");
+  const draftRef = useRef(null);        // the saved draft this session started from, then the latest save
+  const dirtyRef = useRef(false);       // edits not saved yet
+  const saveTimerRef = useRef(null);
 
   const loadTokenRef      = useRef(0);   // ignores stale page loads when the user clicks arrows quickly
   const displayedIndexRef = useRef(0);   // page currently on screen
@@ -83,6 +140,47 @@ export default function TemplateEditor() {
     }, 0);
   }, []);
 
+  // ── Draft autosave (browser-only placeholder, lib/mockDrafts.js) ───────────
+  // Edits are saved about 1.5 s after the last change, and at once when the tab is
+  // hidden or closed, so a power or internet cut loses at most a moment of work.
+  // Only signed-in users have drafts. Pages not visited yet keep what the draft had.
+  const saveNow = useCallback(() => {
+    clearTimeout(saveTimerRef.current);
+    if (!dirtyRef.current) return;
+    const buyer = getUser();
+    if (!buyer) return;
+    dirtyRef.current = false;
+    const pages = { ...(draftRef.current?.state?.pages || {}) };
+    const live = {
+      ...pageStateRef.current,
+      [displayedIndexRef.current]: { placeholders: placeholdersRef.current, textLayers: textLayersRef.current, layers: layersRef.current },
+    };
+    for (const [i, st] of Object.entries(live)) pages[i] = serializePage(st);
+    const saved = saveDraft(buyer.id, { id: modelIdRef.current, name: modelNameRef.current }, { pages, pageIndex: displayedIndexRef.current });
+    draftRef.current = saved;
+    setSaveStatus({ kind: "saved", at: saved.savedAt, expiresAt: saved.expiresAt });
+  }, []);
+
+  const markDirty = useCallback(() => {
+    if (!getUser()) { setSaveStatus((s) => (s?.kind === "guest" ? s : { kind: "guest" })); return; }
+    dirtyRef.current = true;
+    setSaveStatus((s) => (s?.kind === "saving" ? s : { kind: "saving" }));
+    clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(saveNow, 1500);
+  }, [saveNow]);
+
+  useEffect(() => {
+    const flush = () => saveNow();
+    const onHide = () => { if (document.visibilityState === "hidden") saveNow(); };
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", onHide);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", onHide);
+      saveNow();
+    };
+  }, [saveNow]);
+
   useEffect(() => { placeholdersRef.current = placeholders; }, [placeholders]);
   useEffect(() => { textLayersRef.current   = textLayers;   }, [textLayers]);
   useEffect(() => { layersRef.current       = layers;       }, [layers]);
@@ -111,6 +209,14 @@ export default function TemplateEditor() {
     if (!res.ok) throw new Error(`template "${page.template}" not found`);
     const data = await res.json();
     if (token !== loadTokenRef.current) return;
+
+    // A page not seen yet in this session starts fresh, with the saved draft's edits
+    // and photos on it. Loaded before the swap so the canvas and title change together.
+    let restored = null;
+    if (!pageStateRef.current[index]) {
+      restored = await restoreFromDraft(freshPage(data), draftRef.current, index);
+      if (token !== loadTokenRef.current) return;
+    }
 
     if (templateRef.current) {
       pageStateRef.current[displayedIndexRef.current] = {
@@ -143,32 +249,7 @@ export default function TemplateEditor() {
       initTxt   = saved.textLayers;
       allLayers = saved.layers;
     } else {
-      // Separate TEXT placeholders from image placeholders
-      const imgPhs = data.placeholders.filter((p) => p.type !== "TEXT");
-      const txtPhs = data.placeholders.filter((p) => p.type === "TEXT");
-
-      initPhs = imgPhs.map((p) => ({ ...p, userImage: null, previewUrl: null, fitMode: "fill", offset: { x: 0, y: 0 } }));
-
-      // Initialize text layer state — position starts at placeholder bounds center
-      initTxt = txtPhs.map((p) => ({
-        id:        p.id,
-        rawId:     p.rawId,
-        layerName: p.layerName,
-        zIndex:    p.zIndex,
-        bounds:    p.bounds,
-        clipPath:  p.clipPath || null,
-        content:   p.defaultText || "",
-        font:      "Arial",
-        size:      Math.max(24, Math.round((p.bounds.height || 60) * 0.4)),
-        color:     "#000000",
-        bold:      false,
-        italic:    false,
-        alignment: "left",
-        pos:       { x: p.bounds.x, y: p.bounds.y + (p.bounds.height || 60) * 0.7 },
-        boxWidth:  Math.max(80, p.bounds.width || 400),
-      }));
-
-      allLayers = flattenLayers(data.layers).sort((a, b) => b.zIndex - a.zIndex);
+      ({ initPhs, initTxt, allLayers } = restored);
     }
 
     placeholdersRef.current = initPhs;
@@ -202,8 +283,23 @@ export default function TemplateEditor() {
         // The model's id is its file name, or "template-<id>" for the one-page link.
         const id = modelId || `template-${templateParam}`;
         modelIdRef.current = id;
+        modelNameRef.current = m.name;
         setModel({ id, tier: "architect", pricePoints: 1000, ...m });
-        return loadPage(m.pages, 0);
+
+        // The signed-in user's saved draft of this model, if there is one (drafts
+        // older than a month are deleted first). It opens on the page they left.
+        const buyer = getUser();
+        purgeExpiredDrafts();
+        draftRef.current = buyer ? getDraft(buyer.id, id) : null;
+        if (!buyer) setSaveStatus({ kind: "guest" });
+        let start = 0;
+        if (draftRef.current) {
+          setSaveStatus({ kind: "restored", at: draftRef.current.savedAt, expiresAt: draftRef.current.expiresAt });
+          const seen = Object.keys(draftRef.current.state?.pages || {}).map(Number);
+          setVisited(new Set(seen));
+          start = Math.min(Math.max(draftRef.current.state?.pageIndex || 0, 0), m.pages.length - 1);
+        }
+        return loadPage(m.pages, start);
       })
       .catch((err) => { setError(err.message); setLoading(false); });
   }, [loadPage]);
@@ -586,6 +682,7 @@ export default function TemplateEditor() {
   }
 
   function handleCanvasMouseUp() {
+    if (panningRef.current && dragMovedRef.current) markDirty(); // a photo or text was moved or resized
     panningRef.current = null;
     if (canvasRef.current) canvasRef.current.style.cursor = "default";
   }
@@ -637,6 +734,7 @@ export default function TemplateEditor() {
     );
     setTextLayers([...textLayersRef.current]);
     scheduleRender();
+    markDirty();
   }
 
   // ── Image upload/remove/fit ───────────────────────────────────────────────
@@ -645,12 +743,16 @@ export default function TemplateEditor() {
     if (existing?.previewUrl) URL.revokeObjectURL(existing.previewUrl);
     const previewUrl = URL.createObjectURL(file);
     const img        = new Image();
+    // Keep the photo with the draft so it survives a refresh or a cut.
+    const buyer = getUser();
+    if (buyer) putPhoto(photoKey(draftId(buyer.id, modelIdRef.current), displayedIndexRef.current, placeholderId), file);
     img.onload = () => {
       placeholdersRef.current = placeholdersRef.current.map((p) =>
         p.id === placeholderId ? { ...p, previewUrl, userImage: img, offset: { x: 0, y: 0 } } : p
       );
       setPlaceholders([...placeholdersRef.current]);
       scheduleRender();
+      markDirty();
     };
     img.src = previewUrl;
     placeholdersRef.current = placeholdersRef.current.map((p) =>
@@ -667,6 +769,9 @@ export default function TemplateEditor() {
     );
     setPlaceholders([...placeholdersRef.current]);
     scheduleRender();
+    const buyer = getUser();
+    if (buyer) deletePhoto(photoKey(draftId(buyer.id, modelIdRef.current), displayedIndexRef.current, placeholderId));
+    markDirty();
   }
 
   function handleFitMode(placeholderId, fitMode) {
@@ -675,6 +780,7 @@ export default function TemplateEditor() {
     );
     setPlaceholders([...placeholdersRef.current]);
     scheduleRender();
+    markDirty();
   }
 
   // ── Reorder ───────────────────────────────────────────────────────────────
@@ -701,6 +807,7 @@ export default function TemplateEditor() {
     setTextLayers([...textLayersRef.current]);
 
     scheduleRender();
+    markDirty();
   }
 
   function reorderPlaceholder(name, direction) {
@@ -742,6 +849,7 @@ export default function TemplateEditor() {
     setTextLayers([...textLayersRef.current]);
 
     scheduleRender();
+    markDirty();
   }
 
   function handleDragStart(e, name) { dragIdRef.current = name; e.dataTransfer.effectAllowed = "move"; }
@@ -846,6 +954,17 @@ export default function TemplateEditor() {
     );
   }
 
+  // Throws the saved draft away and reopens the model from scratch.
+  function startOver() {
+    if (!window.confirm(t("draft.confirmStartOver"))) return;
+    const buyer = getUser();
+    clearTimeout(saveTimerRef.current);
+    dirtyRef.current = false;
+    if (buyer) deleteDraft(draftId(buyer.id, modelIdRef.current));
+    draftRef.current = null;
+    window.location.reload();
+  }
+
   // Export is the gated action: anyone can open and customize a model, but
   // exporting needs it bought with points (see lib/mockStore.js).
   function handleExport(format = "png") {
@@ -912,6 +1031,21 @@ export default function TemplateEditor() {
             {model.name}
             <span style={S.pageTitle}> ({model.pages[pageIndex]?.name})</span>
           </h1>
+          {saveStatus && (
+            <span style={S.saveStatus} title={saveStatus.expiresAt ? t("draft.keptUntil", { date: fmt.day(saveStatus.expiresAt) }) : undefined}>
+              {saveStatus.kind === "saving" && t("draft.saving")}
+              {saveStatus.kind === "saved" && t("draft.saved", { when: fmt.date(saveStatus.at) })}
+              {saveStatus.kind === "restored" && (
+                <>
+                  {t("draft.restored", { when: fmt.date(saveStatus.at) })}{" "}
+                  <button type="button" style={S.linkBtn} onClick={startOver}>{t("draft.startOver")}</button>
+                </>
+              )}
+              {saveStatus.kind === "guest" && (
+                <>{t("draft.guest")} <a href="/login" style={S.linkBtn}>{t("nav.signIn")}</a></>
+              )}
+            </span>
+          )}
           {!allLoaded && totalLayers > 0 && (
             <span style={{ fontSize: "var(--fs-11)", color: "var(--ink-subtle)", fontFamily: "var(--font-mono)" }}>
               {t("editor.loadingLayers", { done: loadedCount, total: totalLayers })}
@@ -1070,6 +1204,8 @@ const S = {
   topbarLeft: { display: "flex", alignItems: "center", gap: 16, minWidth: 0 },
   logo: { fontSize: "var(--fs-15)", fontWeight: 700, color: "var(--ink)", letterSpacing: "0.02em" },
   btn: { padding: "6px 16px", background: "var(--accent-bg)", color: "var(--accent-ink)", border: "1px solid var(--accent-line)", borderRadius: "var(--r-md)", fontSize: "var(--fs-13)", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" },
+  saveStatus: { fontSize: "var(--fs-12)", color: "var(--ink-subtle)", whiteSpace: "nowrap" },
+  linkBtn: { background: "none", border: "none", padding: 0, color: "var(--accent-ink)", fontSize: "var(--fs-12)", fontFamily: "var(--font-sans)", cursor: "pointer", textDecoration: "underline" },
   body: { display: "flex", flex: 1, overflow: "hidden" },
   sidebar: { order: 2, width: 260, flexShrink: 0, background: "var(--surface-sunken)", borderInlineStart: "1px solid var(--line)", display: "flex", flexDirection: "column", overflow: "hidden" },
   sidebarHeader: { padding: "12px 14px", fontSize: "var(--fs-11)", fontWeight: 700, color: "var(--ink-subtle)", letterSpacing: "0.08em", textTransform: "uppercase", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 },

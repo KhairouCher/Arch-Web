@@ -36,6 +36,13 @@ export function makeFmt(lang, t) {
     points: (n) => `${number(n)} ${t("unit.points")}`,
     // Prices in DA always carry .00 and no thousands separator (Plan: 12000.00 DA).
     da: (n) => `${Number(n).toFixed(2)} ${t("unit.da")}`,
+    day: (iso) => {
+      try {
+        return new Date(iso).toLocaleDateString(DATE_LOCALE[lang] || "en-GB", { day: "2-digit", month: "short", year: "numeric" });
+      } catch {
+        return iso;
+      }
+    },
     date: (iso) => {
       try {
         return new Date(iso).toLocaleString(DATE_LOCALE[lang] || "en-GB", {
