@@ -33,6 +33,11 @@ a {
   text-decoration: none;
 }
 
+/* Arabic: Geist has no Arabic letters, so Cairo (bundled, app/fonts.css) leads. */
+html[lang="ar"] {
+  --font-sans: "Cairo", var(--font-geist-sans), system-ui, sans-serif;
+}
+
 @media (prefers-color-scheme: dark) {
   html {
     color-scheme: dark;

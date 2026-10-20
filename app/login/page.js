@@ -4,9 +4,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { mockSignIn } from "../lib/mockAuth";
+import { useI18n } from "../i18n/I18nProvider";
+import LanguageSwitcher from "../i18n/LanguageSwitcher";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
   const [error, setError]       = useState("");
@@ -14,7 +17,7 @@ export default function LoginPage() {
   function handleSubmit(e) {
     e.preventDefault();
     if (!email || !password) {
-      setError("Enter an email and password.");
+      setError(t("err.emailPassword"));
       return;
     }
     // No real auth yet — see app/lib/mockAuth.js.
@@ -24,23 +27,24 @@ export default function LoginPage() {
 
   return (
     <div style={S.page}>
+      <LanguageSwitcher />
       <Link href="/" style={S.logo}>ArchPresent</Link>
 
       <div style={S.card}>
-        <h1 style={S.h1}>Sign in</h1>
-        <p style={S.sub}>Welcome back.</p>
+        <h1 style={S.h1}>{t("login.title")}</h1>
+        <p style={S.sub}>{t("login.sub")}</p>
 
         <form onSubmit={handleSubmit}>
-          <label style={S.label}>Email</label>
+          <label style={S.label}>{t("field.email")}</label>
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             style={S.input}
-            placeholder="you@example.com"
+            placeholder={t("ph.email")}
           />
 
-          <label style={S.label}>Password</label>
+          <label style={S.label}>{t("field.password")}</label>
           <input
             type="password"
             value={password}
@@ -51,11 +55,11 @@ export default function LoginPage() {
 
           {error && <p style={S.error}>{error}</p>}
 
-          <button type="submit" style={S.submitBtn}>Sign In</button>
+          <button type="submit" style={S.submitBtn}>{t("login.submit")}</button>
         </form>
 
         <p style={S.switchText}>
-          Don&apos;t have an account? <Link href="/signup" style={S.switchLink}>Sign up</Link>
+          {t("login.noAccount")} <Link href="/signup" style={S.switchLink}>{t("login.signUp")}</Link>
         </p>
       </div>
     </div>

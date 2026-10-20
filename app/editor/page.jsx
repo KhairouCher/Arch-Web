@@ -6,6 +6,8 @@ import { flattenLayers, drawImageInBounds, buildFont, traceMaskContour, wrapText
 import { getUser } from "../lib/mockAuth";
 import { effectiveModel, hasPurchased, spendPoints } from "../lib/mockStore";
 import { useSession } from "../lib/useSession";
+import { useI18n } from "../i18n/I18nProvider";
+import LanguageSwitcher from "../i18n/LanguageSwitcher";
 import PlaceholderOverlay from "./components/PlaceholderOverlay";
 import TextLayerRow from "./components/TextLayerRow";
 import LayerRow from "./components/LayerRow";
@@ -31,6 +33,7 @@ export default function TemplateEditor() {
   const [model,        setModel]        = useState(null);  // { id, name, tier, pricePoints, pages: [{ name, template }] }
   const [pageIndex,    setPageIndex]    = useState(0);
   const { user, balance } = useSession();
+  const { t, dir } = useI18n();
   const modelIdRef = useRef("template");
 
   const loadTokenRef      = useRef(0);   // ignores stale page loads when the user clicks arrows quickly
@@ -864,7 +867,7 @@ export default function TemplateEditor() {
     try {
       spendPoints(buyer.id, effectiveModel(model));
     } catch (e) {
-      setBuyError(e.message);
+      setBuyError(e.code ? t(`err.${e.code}`, e.params) : e.message);
       return;
     }
     setBuyError(null);
@@ -881,8 +884,8 @@ export default function TemplateEditor() {
   }
 
   // ─── Early returns ────────────────────────────────────────────────────────
-  if (loading) return <div style={S.centered}><p style={{ color: "var(--ink-muted)", fontFamily: "var(--font-sans)" }}>Loading template...</p></div>;
-  if (error)   return <div style={S.centered}><p style={{ color: "var(--danger)", fontFamily: "var(--font-sans)" }}>Error: {error}</p></div>;
+  if (loading) return <div style={S.centered}><p style={{ color: "var(--ink-muted)", fontFamily: "var(--font-sans)" }}>{t("editor.loading")}</p></div>;
+  if (error)   return <div style={S.centered}><p style={{ color: "var(--danger)", fontFamily: "var(--font-sans)" }}>{t("editor.error", { message: error })}</p></div>;
 
   const ps_      = Math.min(1, PREVIEW_WIDTH / template.meta.canvasWidth);
   const previewW = Math.round(template.meta.canvasWidth  * ps_);
@@ -911,26 +914,27 @@ export default function TemplateEditor() {
           </h1>
           {!allLoaded && totalLayers > 0 && (
             <span style={{ fontSize: "var(--fs-11)", color: "var(--ink-subtle)", fontFamily: "var(--font-mono)" }}>
-              Loading {loadedCount}/{totalLayers}...
+              {t("editor.loadingLayers", { done: loadedCount, total: totalLayers })}
             </span>
           )}
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button style={{ ...S.btn, background: "var(--warn-bg)", color: "var(--warn)", borderColor: "var(--warn-line)" }} onClick={renderCanvas}>Apply</button>
-          <button style={S.btn} onClick={() => handleExport("png")} disabled={exporting}>{exporting ? "Exporting..." : "Export PNG"}</button>
-          <button style={{ ...S.btn, background: "var(--go-bg)", color: "var(--go)", borderColor: "var(--go-line)" }} onClick={() => handleExport("jpg")} disabled={exporting}>Export JPG</button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <LanguageSwitcher />
+          <button style={{ ...S.btn, background: "var(--warn-bg)", color: "var(--warn)", borderColor: "var(--warn-line)" }} onClick={renderCanvas}>{t("editor.apply")}</button>
+          <button style={S.btn} onClick={() => handleExport("png")} disabled={exporting}>{exporting ? t("editor.exporting") : t("editor.exportPng")}</button>
+          <button style={{ ...S.btn, background: "var(--go-bg)", color: "var(--go)", borderColor: "var(--go-line)" }} onClick={() => handleExport("jpg")} disabled={exporting}>{t("editor.exportJpg")}</button>
         </div>
       </div>
 
       <div style={S.body}>
         <div style={S.sidebar}>
           <div style={S.sidebarHeader}>
-            Layers <span style={S.badge}>{sidebarLayers.length}</span>
-            <span style={{ marginLeft: "auto", fontSize: "var(--fs-10)", color: "var(--ink-faint)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>top → bottom</span>
+            {t("editor.layers")} <span style={S.badge}>{sidebarLayers.length}</span>
+            <span style={{ marginInlineStart: "auto", fontSize: "var(--fs-10)", color: "var(--ink-faint)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>{t("editor.topToBottom")}</span>
           </div>
           <div style={{ overflowY: "auto", flex: 1, padding: "8px 10px" }}>
             {sidebarLayers.length === 0 && (
-              <p style={{ margin: 0, fontSize: "var(--fs-12)", color: "var(--ink-subtle)" }}>This page has nothing to edit.</p>
+              <p style={{ margin: 0, fontSize: "var(--fs-12)", color: "var(--ink-subtle)" }}>{t("editor.nothing")}</p>
             )}
             {sidebarLayers.map((layer) => {
               const isText        = layer.placeholder?.type === "TEXT";
@@ -994,11 +998,11 @@ export default function TemplateEditor() {
           <div style={S.stage}>
             {hasPages && (
               <button
-                aria-label="Previous page"
-                style={{ ...S.navArrow, borderRight: "1px solid var(--line)", ...(pageIndex === 0 ? S.navArrowDisabled : null) }}
+                aria-label={t("editor.prev")}
+                style={{ ...S.navArrow, borderInlineEnd: "1px solid var(--line)", ...(pageIndex === 0 ? S.navArrowDisabled : null) }}
                 disabled={pageIndex === 0}
                 onClick={() => goToPage(-1)}
-              >‹</button>
+              >{dir === "rtl" ? "›" : "‹"}</button>
             )}
 
             <div style={S.canvasArea} ref={containerRef}>
@@ -1022,11 +1026,11 @@ export default function TemplateEditor() {
 
             {hasPages && (
               <button
-                aria-label="Next page"
-                style={{ ...S.navArrow, borderLeft: "1px solid var(--line)", ...(pageIndex === model.pages.length - 1 ? S.navArrowDisabled : null) }}
+                aria-label={t("editor.next")}
+                style={{ ...S.navArrow, borderInlineStart: "1px solid var(--line)", ...(pageIndex === model.pages.length - 1 ? S.navArrowDisabled : null) }}
                 disabled={pageIndex === model.pages.length - 1}
                 onClick={() => goToPage(1)}
-              >›</button>
+              >{dir === "rtl" ? "‹" : "›"}</button>
             )}
           </div>
         </div>
@@ -1067,7 +1071,7 @@ const S = {
   logo: { fontSize: "var(--fs-15)", fontWeight: 700, color: "var(--ink)", letterSpacing: "0.02em" },
   btn: { padding: "6px 16px", background: "var(--accent-bg)", color: "var(--accent-ink)", border: "1px solid var(--accent-line)", borderRadius: "var(--r-md)", fontSize: "var(--fs-13)", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" },
   body: { display: "flex", flex: 1, overflow: "hidden" },
-  sidebar: { order: 2, width: 260, flexShrink: 0, background: "var(--surface-sunken)", borderLeft: "1px solid var(--line)", display: "flex", flexDirection: "column", overflow: "hidden" },
+  sidebar: { order: 2, width: 260, flexShrink: 0, background: "var(--surface-sunken)", borderInlineStart: "1px solid var(--line)", display: "flex", flexDirection: "column", overflow: "hidden" },
   sidebarHeader: { padding: "12px 14px", fontSize: "var(--fs-11)", fontWeight: 700, color: "var(--ink-subtle)", letterSpacing: "0.08em", textTransform: "uppercase", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 },
   badge: { background: "var(--surface-hover)", color: "var(--ink-subtle)", fontSize: "var(--fs-10)", fontWeight: 700, padding: "1px 6px", borderRadius: "var(--r-lg)" },
   canvasColumn: { flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" },

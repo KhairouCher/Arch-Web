@@ -55,9 +55,12 @@ function write(key, value) {
 function seed(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
 }
-function fail(message, code) {
+// Errors carry a code (and parameters) so the pages can show them in the
+// current language; the English message is only for logs.
+function fail(message, code, params) {
   const e = new Error(message);
   if (code) e.code = code;
+  if (params) e.params = params;
   return e;
 }
 
@@ -81,7 +84,7 @@ export function getUsers() {
 function seedLedger() {
   const seeded = [{
     id: 1, userId: "buyer1@example.com", kind: "topup", amount: 20000,
-    reason: "Sample top-up (demo data)", bundleId: null, modelId: null,
+    reason: "Sample top-up (demo data)", reasonKey: "ledger.demoTopup", bundleId: null, modelId: null,
     createdBy: "admin@archpresent.test", createdAt: new Date().toISOString(),
   }];
   seed(KEYS.ledger, seeded);
@@ -112,14 +115,14 @@ function appendLedger(entry) {
 export function creditPoints({ adminId, userId, kind, amount, reason, bundleId = null }) {
   const users = getUsers();
   const admin = users.find((u) => u.id === adminId);
-  if (!admin || admin.role !== "admin") throw fail("Only an admin can change a points balance.");
-  if (kind !== "topup" && kind !== "adjustment") throw fail("Use topup or adjustment.");
-  if (!users.some((u) => u.id === userId)) throw fail("Unknown user.");
-  if (!Number.isInteger(amount) || amount === 0) throw fail("Enter a whole number of points, not zero.");
-  if (kind === "topup" && amount < 0) throw fail("A top-up must add points. Use an adjustment to remove them.");
-  if (!String(reason || "").trim()) throw fail("A reason is required.");
+  if (!admin || admin.role !== "admin") throw fail("Only an admin can change a points balance.", "onlyAdmin");
+  if (kind !== "topup" && kind !== "adjustment") throw fail("Use topup or adjustment.", "badKind");
+  if (!users.some((u) => u.id === userId)) throw fail("Unknown user.", "unknownUser");
+  if (!Number.isInteger(amount) || amount === 0) throw fail("Enter a whole number of points, not zero.", "badAmount");
+  if (kind === "topup" && amount < 0) throw fail("A top-up must add points. Use an adjustment to remove them.", "topupNegative");
+  if (!String(reason || "").trim()) throw fail("A reason is required.", "reasonRequired");
   const next = balanceOf(userId) + amount;
-  if (next < 0) throw fail(`This change would make the balance negative (${next}).`);
+  if (next < 0) throw fail(`This change would make the balance negative (${next}).`, "negativeBalance", { balance: next });
   return appendLedger({ userId, kind, amount, reason: String(reason).trim(), bundleId, createdBy: adminId });
 }
 
@@ -141,11 +144,11 @@ export function hasPurchased(userId, modelId) {
 export function spendPoints(userId, model) {
   const existing = getPurchase(userId, model.id);
   if (existing) return existing;
-  if (!getUsers().some((u) => u.id === userId)) throw fail("Unknown user.");
+  if (!getUsers().some((u) => u.id === userId)) throw fail("Unknown user.", "unknownUser");
   const price = model.pricePoints;
   const balance = balanceOf(userId);
-  if (balance < price) throw fail(`Not enough points: ${price} needed, ${balance} available.`, "INSUFFICIENT");
-  const entry = appendLedger({ userId, kind: "purchase", amount: -price, reason: `Bought model ${model.name}`, modelId: model.id, createdBy: userId });
+  if (balance < price) throw fail(`Not enough points: ${price} needed, ${balance} available.`, "insufficient", { price, balance });
+  const entry = appendLedger({ userId, kind: "purchase", amount: -price, reason: `Bought model ${model.name}`, reasonKey: "ledger.bought", reasonParams: { model: model.name }, modelId: model.id, createdBy: userId });
   const purchase = {
     id: `P-${entry.id}`, userId, modelId: model.id, modelName: model.name, pointsSpent: price,
     ledgerId: entry.id, createdAt: entry.createdAt,
@@ -195,9 +198,4 @@ export function addJob(source, requestedBy) {
 }
 export function setJobStatus(id, status) {
   write(KEYS.jobs, listJobs().map((j) => (j.id === id ? { ...j, status } : j)));
-}
-
-export function formatDuration(seconds) {
-  const h = Math.floor(seconds / 3600), m = Math.round((seconds % 3600) / 60);
-  return h ? `${h} h ${m} min` : `${m} min`;
 }

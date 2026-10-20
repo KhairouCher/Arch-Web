@@ -1,33 +1,13 @@
 import Link from "next/link";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
+import { getI18n } from "./i18n/server";
 
-const FEATURES = [
-  {
-    title: "Upload your templates",
-    body: "Turn a Photoshop presentation template into a fully interactive web template — once, not every time you need a new deck.",
-  },
-  {
-    title: "Swap photos & text instantly",
-    body: "Drop in new photos and edit captions right in the browser. No Photoshop required to customize a presentation.",
-  },
-  {
-    title: "Pixel-accurate placement",
-    body: "Photos snap into the exact shapes your designer created — masks, shadows, and layer order all preserved.",
-  },
-  {
-    title: "Export in full resolution",
-    body: "Download a print-ready PNG or JPG the moment you're happy with it, at the template's original resolution.",
-  },
-];
+const FEATURE_KEYS = ["f1", "f2", "f3", "f4"];
+const STEP_KEYS = [["s1", "01"], ["s2", "02"], ["s3", "03"]];
 
-const STEPS = [
-  { n: "01", title: "Convert", body: "Run a Photoshop template through the converter once to make it editable on the web." },
-  { n: "02", title: "Customize", body: "Swap photos, edit text, and reorder layers directly in the browser." },
-  { n: "03", title: "Export", body: "Download the finished presentation in full resolution, ready to share." },
-];
-
-export default function Home() {
+export default async function Home() {
+  const { t } = await getI18n();
   return (
     <div style={S.page}>
       <Header />
@@ -35,48 +15,44 @@ export default function Home() {
       <main>
         <section style={S.hero}>
           <div style={S.heroInner}>
-            <h1 style={S.h1}>Presentation templates,<br />ready to edit online.</h1>
-            <p style={S.heroSub}>
-              Convert a Photoshop presentation template once, then let anyone
-              on the team swap photos and text and export a finished
-              presentation — no design software needed.
-            </p>
+            <h1 style={S.h1}>{t("home.h1a")}<br />{t("home.h1b")}</h1>
+            <p style={S.heroSub}>{t("home.sub")}</p>
             <div style={S.heroCtas}>
-              <Link href="/editor" style={S.primaryBtn}>Open Editor</Link>
-              <a href="#how-it-works" style={S.secondaryBtn}>See how it works</a>
+              <Link href="/editor" style={S.primaryBtn}>{t("home.openEditor")}</Link>
+              <a href="#how-it-works" style={S.secondaryBtn}>{t("home.seeHow")}</a>
             </div>
           </div>
         </section>
 
         <section id="features" style={S.section}>
-          <h2 style={S.h2}>What it does</h2>
+          <h2 style={S.h2}>{t("home.whatTitle")}</h2>
           <div style={S.featureGrid}>
-            {FEATURES.map((f) => (
-              <div key={f.title} style={S.featureCard}>
-                <h3 style={S.featureTitle}>{f.title}</h3>
-                <p style={S.featureBody}>{f.body}</p>
+            {FEATURE_KEYS.map((k) => (
+              <div key={k} style={S.featureCard}>
+                <h3 style={S.featureTitle}>{t(`home.${k}.title`)}</h3>
+                <p style={S.featureBody}>{t(`home.${k}.body`)}</p>
               </div>
             ))}
           </div>
         </section>
 
         <section id="how-it-works" style={{ ...S.section, background: "var(--surface-sunken)" }}>
-          <h2 style={S.h2}>How it works</h2>
+          <h2 style={S.h2}>{t("home.howTitle")}</h2>
           <div style={S.stepGrid}>
-            {STEPS.map((s) => (
-              <div key={s.n} style={S.step}>
-                <span style={S.stepNumber}>{s.n}</span>
-                <h3 style={S.featureTitle}>{s.title}</h3>
-                <p style={S.featureBody}>{s.body}</p>
+            {STEP_KEYS.map(([k, n]) => (
+              <div key={k} style={S.step}>
+                <span style={S.stepNumber}>{n}</span>
+                <h3 style={S.featureTitle}>{t(`home.${k}.title`)}</h3>
+                <p style={S.featureBody}>{t(`home.${k}.body`)}</p>
               </div>
             ))}
           </div>
         </section>
 
         <section style={S.ctaSection}>
-          <h2 style={S.h2}>Ready to try it?</h2>
-          <p style={S.heroSub}>Open the editor and see a live template in action.</p>
-          <Link href="/editor" style={S.primaryBtn}>Open Editor</Link>
+          <h2 style={S.h2}>{t("home.readyTitle")}</h2>
+          <p style={S.heroSub}>{t("home.readySub")}</p>
+          <Link href="/editor" style={S.primaryBtn}>{t("home.openEditor")}</Link>
         </section>
       </main>
 
@@ -127,7 +103,7 @@ const S = {
     display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
     gap: 32, maxWidth: 1100, margin: "0 auto", padding: "0 24px",
   },
-  step: { textAlign: "left" },
+  step: { textAlign: "start" },
   stepNumber: {
     display: "block", fontSize: "var(--fs-13)", fontWeight: 700, color: "var(--accent)",
     fontFamily: "var(--font-mono)", marginBottom: 10,

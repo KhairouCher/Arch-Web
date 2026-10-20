@@ -1,21 +1,27 @@
+"use client";
+
 import Link from "next/link";
 import HeaderAccount from "./HeaderAccount";
+import LanguageSwitcher from "../i18n/LanguageSwitcher";
+import { useI18n } from "../i18n/I18nProvider";
 
-// Site-wide marketing header — shared by the homepage and the template
-// gallery. Not used on /editor, which has its own full-screen app chrome.
+// Site-wide marketing header — shared by the homepage and the models gallery.
+// Not used on /editor, which has its own full-screen app chrome.
 export default function Header() {
+  const { t } = useI18n();
   return (
     <header style={S.header}>
       <div style={S.headerInner}>
         <Link href="/" style={S.logo}>ArchPresent</Link>
         <nav style={S.nav}>
-          <Link href="/models" style={S.navLink}>Models</Link>
-          <Link href="/#features" style={S.navLink}>Features</Link>
-          <Link href="/#how-it-works" style={S.navLink}>How it works</Link>
+          <Link href="/models" style={S.navLink}>{t("nav.models")}</Link>
+          <Link href="/#features" style={S.navLink}>{t("nav.features")}</Link>
+          <Link href="/#how-it-works" style={S.navLink}>{t("nav.how")}</Link>
         </nav>
         <div style={S.rightGroup}>
+          <LanguageSwitcher />
           <HeaderAccount linkStyle={S.navLink} />
-          <Link href="/editor" style={S.navCta}>Open Editor</Link>
+          <Link href="/editor" style={S.navCta}>{t("nav.openEditor")}</Link>
         </div>
       </div>
     </header>

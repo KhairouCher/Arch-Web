@@ -27,7 +27,7 @@ export const UI = {
   tableWrap: { overflowX: "auto", border: "1px solid var(--line)", borderRadius: "var(--r-lg)", background: "var(--surface)" },
   table: { width: "100%", borderCollapse: "collapse", fontSize: "var(--fs-13)", minWidth: 560 },
   th: {
-    textAlign: "left", padding: "10px 14px", fontFamily: "var(--font-mono)", fontSize: "var(--fs-11)",
+    textAlign: "start", padding: "10px 14px", fontFamily: "var(--font-mono)", fontSize: "var(--fs-11)",
     letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--ink-subtle)", fontWeight: 500,
     background: "var(--surface-sunken)", borderBottom: "1px solid var(--line)", whiteSpace: "nowrap",
   },

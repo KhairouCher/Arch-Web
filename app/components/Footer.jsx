@@ -1,10 +1,15 @@
-// Site-wide marketing footer — shared by the homepage and the template
-// gallery. Not used on /editor.
+"use client";
+
+import { useI18n } from "../i18n/I18nProvider";
+
+// Site-wide marketing footer — shared by the homepage and the models gallery.
+// Not used on /editor.
 export default function Footer() {
+  const { t } = useI18n();
   return (
     <footer style={S.footer}>
       <span style={S.logo}>ArchPresent</span>
-      <span style={S.footerText}>&copy; {new Date().getFullYear()} ArchPresent. All rights reserved.</span>
+      <span style={S.footerText}>{t("footer.rights", { year: new Date().getFullYear() })}</span>
     </footer>
   );
 }

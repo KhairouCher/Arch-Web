@@ -1,18 +1,22 @@
+"use client";
+
 import Link from "next/link";
+import { useI18n } from "../i18n/I18nProvider";
 
 // Tab row shared by the admin pages.
 const TABS = [
-  ["templates", "/admin", "Templates"],
-  ["models", "/admin/models", "Models"],
-  ["points", "/admin/points", "Points"],
-  ["queue", "/admin/queue", "Conversion queue"],
+  ["templates", "/admin"],
+  ["models", "/admin/models"],
+  ["points", "/admin/points"],
+  ["queue", "/admin/queue"],
 ];
 
 export default function AdminTabs({ active }) {
+  const { t } = useI18n();
   return (
     <div style={S.row}>
-      {TABS.map(([key, href, label]) => (
-        <Link key={key} href={href} style={{ ...S.tab, ...(active === key ? S.on : null) }}>{label}</Link>
+      {TABS.map(([key, href]) => (
+        <Link key={key} href={href} style={{ ...S.tab, ...(active === key ? S.on : null) }}>{t(`admin.tab.${key}`)}</Link>
       ))}
     </div>
   );

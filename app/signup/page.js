@@ -4,9 +4,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { mockSignIn } from "../lib/mockAuth";
+import { useI18n } from "../i18n/I18nProvider";
+import LanguageSwitcher from "../i18n/LanguageSwitcher";
 
 export default function SignupPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [name, setName]         = useState("");
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
@@ -16,11 +19,11 @@ export default function SignupPage() {
   function handleSubmit(e) {
     e.preventDefault();
     if (!name || !email || !password) {
-      setError("Fill in every field.");
+      setError(t("err.fillAll"));
       return;
     }
     if (password !== confirm) {
-      setError("Passwords don't match.");
+      setError(t("err.pwMismatch"));
       return;
     }
     // No real auth yet — see app/lib/mockAuth.js.
@@ -30,32 +33,33 @@ export default function SignupPage() {
 
   return (
     <div style={S.page}>
+      <LanguageSwitcher />
       <Link href="/" style={S.logo}>ArchPresent</Link>
 
       <div style={S.card}>
-        <h1 style={S.h1}>Create an account</h1>
-        <p style={S.sub}>Get started with ArchPresent.</p>
+        <h1 style={S.h1}>{t("signup.title")}</h1>
+        <p style={S.sub}>{t("signup.sub")}</p>
 
         <form onSubmit={handleSubmit}>
-          <label style={S.label}>Name</label>
+          <label style={S.label}>{t("field.name")}</label>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
             style={S.input}
-            placeholder="Jane Doe"
+            placeholder={t("ph.name")}
           />
 
-          <label style={S.label}>Email</label>
+          <label style={S.label}>{t("field.email")}</label>
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             style={S.input}
-            placeholder="you@example.com"
+            placeholder={t("ph.email")}
           />
 
-          <label style={S.label}>Password</label>
+          <label style={S.label}>{t("field.password")}</label>
           <input
             type="password"
             value={password}
@@ -64,7 +68,7 @@ export default function SignupPage() {
             placeholder="••••••••"
           />
 
-          <label style={S.label}>Confirm password</label>
+          <label style={S.label}>{t("field.confirm")}</label>
           <input
             type="password"
             value={confirm}
@@ -75,11 +79,11 @@ export default function SignupPage() {
 
           {error && <p style={S.error}>{error}</p>}
 
-          <button type="submit" style={S.submitBtn}>Create Account</button>
+          <button type="submit" style={S.submitBtn}>{t("signup.submit")}</button>
         </form>
 
         <p style={S.switchText}>
-          Already have an account? <Link href="/login" style={S.switchLink}>Sign in</Link>
+          {t("signup.haveAccount")} <Link href="/login" style={S.switchLink}>{t("login.title")}</Link>
         </p>
       </div>
     </div>

@@ -68,6 +68,17 @@ admin. `buyer1@example.com` starts with 20,000 points.
   `ui.js` (the shared minimal styles), `format.js`.
 - `app/components/` — `Header`, `Footer`, `AppBar` (signed-in bar), `AdminTabs`,
   `AdminOnly` (demo admin gate).
+- `app/i18n/` — the three interface languages (French by default, Arabic and
+  English). `messages/{fr,ar,en}.js` hold the text (same keys in all three,
+  checked by `messages.test.mjs`), `translate.js` the `t()` function and the
+  formatters (prices in DA always as `12000.00 DA`, Western digits in Arabic),
+  `I18nProvider.jsx` / `useI18n()` for client code and `server.js` /
+  `getI18n()` for server code. The language is a cookie set by
+  `LanguageSwitcher.jsx`; the root layout puts it on `<html lang dir>`, so Arabic
+  mirrors the whole layout. Use logical CSS (`marginInlineStart`,
+  `borderInlineEnd`, `textAlign: "start"`), never left and right, except for the
+  canvas overlay, which is not mirrored. Model and page names are content and
+  are not translated.
 - `app/tokens.css` — the design tokens (colors in light and dark, type, radii,
   spacing, layout). **All styling goes through these.** Light is the main theme;
   dark follows the system. Change or add a token there first; the Style Ledger

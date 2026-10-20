@@ -1,10 +1,12 @@
 import { PLACEHOLDER_COLORS, AVAILABLE_FONTS } from "../lib/constants";
+import { useI18n } from "../../i18n/I18nProvider";
 import { arrowBtnStyle, DROP_INDICATOR_STYLE } from "../lib/styles";
 
 // Sidebar controls for a text placeholder — content, font, size, style,
 // color, alignment. Box position/size are set on the canvas itself, not
 // here (see page.jsx's handleCanvasMouseDown/MouseMove).
 export default function TextLayerRow({ layer, txtState, isFirst, isLast, isSelected, dropPosition, onSelect, onTextChange, onMoveUp, onMoveDown, onDragStart, onDragOver, onDrop, onDragEnd }) {
+  const { t } = useI18n();
   const color = PLACEHOLDER_COLORS.TEXT;
 
   const styleBtn = (active) => ({
@@ -48,7 +50,7 @@ export default function TextLayerRow({ layer, txtState, isFirst, isLast, isSelec
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: isSelected ? 8 : 0 }}>
         <div style={{ background: color, color: "var(--on-accent)", fontSize: "var(--fs-10)", fontWeight: 700, padding: "1px 5px", borderRadius: "var(--r-sm)", letterSpacing: "0.05em", flexShrink: 0 }}>
-          TEXT
+          {t("type.TEXT")}
         </div>
         <div style={{ color: "var(--ink-body)", fontSize: "var(--fs-12)", fontWeight: 500, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {layer.placeholder.rawId}
@@ -57,8 +59,8 @@ export default function TextLayerRow({ layer, txtState, isFirst, isLast, isSelec
           <>
             <div style={{ color: "var(--ink-faint)", fontSize: "var(--fs-10)", fontFamily: "var(--font-mono)", flexShrink: 0 }}>z{layer.zIndex}</div>
             <div style={{ display: "flex", gap: 2 }} onClick={(e) => e.stopPropagation()}>
-              <button style={arrowBtnStyle(isFirst)} onClick={() => !isFirst && onMoveUp(layer.name)}>↑</button>
-              <button style={arrowBtnStyle(isLast)}  onClick={() => !isLast  && onMoveDown(layer.name)}>↓</button>
+              <button style={arrowBtnStyle(isFirst)} aria-label={t("layer.moveUp")} onClick={() => !isFirst && onMoveUp(layer.name)}>↑</button>
+              <button style={arrowBtnStyle(isLast)}  aria-label={t("layer.moveDown")} onClick={() => !isLast  && onMoveDown(layer.name)}>↓</button>
             </div>
           </>
         )}
@@ -70,7 +72,7 @@ export default function TextLayerRow({ layer, txtState, isFirst, isLast, isSelec
         <textarea
           value={txtState?.content || ""}
           onChange={(e) => onTextChange(layer.placeholder.id, { content: e.target.value })}
-          placeholder="Enter text..."
+          placeholder={t("text.placeholder")}
           dir="auto"
           rows={2}
           style={{ ...inputStyle, resize: "vertical", marginBottom: 6 }}
@@ -102,7 +104,7 @@ export default function TextLayerRow({ layer, txtState, isFirst, isLast, isSelec
 
         {/* Color */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-          <span style={{ color: "var(--ink-subtle)", fontSize: "var(--fs-10)" }}>Color</span>
+          <span style={{ color: "var(--ink-subtle)", fontSize: "var(--fs-10)" }}>{t("text.color")}</span>
           <input
             type="color"
             value={txtState?.color || "#000000"}
@@ -114,13 +116,13 @@ export default function TextLayerRow({ layer, txtState, isFirst, isLast, isSelec
 
         {/* Alignment */}
         <div style={{ display: "flex", gap: 3 }}>
-          <button style={alignBtn("left")}   onClick={() => onTextChange(layer.placeholder.id, { alignment: "left" })}>Left</button>
-          <button style={alignBtn("center")} onClick={() => onTextChange(layer.placeholder.id, { alignment: "center" })}>Center</button>
-          <button style={alignBtn("right")}  onClick={() => onTextChange(layer.placeholder.id, { alignment: "right" })}>Right</button>
+          <button style={alignBtn("left")}   onClick={() => onTextChange(layer.placeholder.id, { alignment: "left" })}>{t("text.left")}</button>
+          <button style={alignBtn("center")} onClick={() => onTextChange(layer.placeholder.id, { alignment: "center" })}>{t("text.center")}</button>
+          <button style={alignBtn("right")}  onClick={() => onTextChange(layer.placeholder.id, { alignment: "right" })}>{t("text.right")}</button>
         </div>
 
         <div style={{ color: "var(--ink-faint)", fontSize: "var(--fs-10)", marginTop: 6 }}>
-          Click text on canvas to select it, then drag it to reposition or drag the handle on its right edge to resize
+          {t("text.hint")}
         </div>
       </div>
       )}

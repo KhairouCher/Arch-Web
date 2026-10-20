@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --test app/editor/lib/*.test.mjs",
+    "test": "node --test app/editor/lib/*.test.mjs app/i18n/*.test.mjs",
     "test:db": "node db/schema.test.mjs"
   },
   "dependencies": {

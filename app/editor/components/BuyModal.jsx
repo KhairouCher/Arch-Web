@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { UI } from "../../lib/ui";
-import { formatPoints } from "../../lib/format";
+import { useI18n } from "../../i18n/I18nProvider";
 
 // Review and buy a model with points. Replaces the earlier mock payment dialog.
 // The buyer must have seen every page (the review step) before Buy is enabled.
@@ -8,6 +8,7 @@ import { formatPoints } from "../../lib/format";
 // No card details are collected: payment happens when the client adds points
 // to the account (see the wallet page).
 export default function BuyModal({ model, pages, visited, user, balance, error, onGoToPage, onBuy, onCancel }) {
+  const { t, fmt } = useI18n();
   const price = model.pricePoints;
   const unseen = pages.map((p, i) => ({ ...p, i })).filter((p) => !visited.has(p.i));
   const enough = balance >= price;
@@ -15,53 +16,53 @@ export default function BuyModal({ model, pages, visited, user, balance, error, 
 
   return (
     <div style={S.backdrop} onClick={onCancel}>
-      <div style={S.modal} role="dialog" aria-label="Buy this model" onClick={(e) => e.stopPropagation()}>
-        <h2 style={S.title}>Buy {model.name}</h2>
+      <div style={S.modal} role="dialog" aria-label={t("buy.dialog")} onClick={(e) => e.stopPropagation()}>
+        <h2 style={S.title}>{t("buy.title", { model: model.name })}</h2>
         <p style={S.sub}>
-          Buying removes the watermark and lets you download every page at full resolution, as many times as you like.
+          {t("buy.sub")}
         </p>
 
-        <div style={S.sectionLabel}>Review every page first</div>
+        <div style={S.sectionLabel}>{t("buy.review")}</div>
         <div style={{ display: "grid", gap: 6, marginBottom: 14 }}>
           {pages.map((p, i) => (
             <div key={i} style={S.pageRow}>
               <span style={{ color: visited.has(i) ? "var(--go)" : "var(--ink-faint)", width: 16 }}>{visited.has(i) ? "✓" : "○"}</span>
               <span style={{ flex: 1, color: "var(--ink-body)" }}>{p.name}</span>
-              {!visited.has(i) && <button type="button" style={{ ...UI.btnGhost, padding: "2px 10px" }} onClick={() => onGoToPage(i)}>Go to page</button>}
+              {!visited.has(i) && <button type="button" style={{ ...UI.btnGhost, padding: "2px 10px" }} onClick={() => onGoToPage(i)}>{t("buy.goTo")}</button>}
             </div>
           ))}
         </div>
 
-        <div style={S.row}><span>Price</span><span>{formatPoints(price)}</span></div>
-        <div style={S.row}><span>Your balance</span><span>{user ? formatPoints(balance) : "Not signed in"}</span></div>
+        <div style={S.row}><span>{t("buy.price")}</span><span>{fmt.points(price)}</span></div>
+        <div style={S.row}><span>{t("buy.balance")}</span><span>{user ? fmt.points(balance) : t("buy.notSignedIn")}</span></div>
         <div style={{ ...S.row, ...S.total }}>
-          <span>Balance after buying</span>
-          <span>{user && enough ? formatPoints(balance - price) : "—"}</span>
+          <span>{t("buy.after")}</span>
+          <span>{user && enough ? fmt.points(balance - price) : "—"}</span>
         </div>
 
         {!user && (
           <div style={{ ...UI.notice("warn"), marginTop: 14 }}>
-            Sign in to buy. <Link href="/login" style={{ textDecoration: "underline" }}>Go to sign in</Link>
+            {t("buy.signInPrompt")} <Link href="/login" style={{ textDecoration: "underline" }}>{t("buy.signInLink")}</Link>
           </div>
         )}
         {user && !enough && (
           <div style={{ ...UI.notice("danger"), marginTop: 14 }}>
-            You need {formatPoints(price - balance)} more. <Link href="/wallet" style={{ textDecoration: "underline" }}>Top up in the wallet</Link>
+            {t("buy.needMore", { points: fmt.points(price - balance) })} <Link href="/wallet" style={{ textDecoration: "underline" }}>{t("buy.topUpLink")}</Link>
           </div>
         )}
         {unseen.length > 0 && (
           <div style={{ ...UI.notice("accent"), marginTop: 14 }}>
-            Look at {unseen.length === 1 ? "the remaining page" : `the ${unseen.length} remaining pages`} before you buy.
+            {t("buy.unseen", { count: unseen.length })}
           </div>
         )}
 
         {error && <div style={{ ...UI.notice("danger"), marginTop: 14 }}>{error}</div>}
 
         <button type="button" disabled={!canBuy} style={{ ...UI.btnSolid, width: "100%", marginTop: 18, padding: "11px 0", ...(canBuy ? null : UI.btnDisabled) }} onClick={onBuy}>
-          Buy for {formatPoints(price)}
+          {t("buy.confirm", { price: fmt.points(price) })}
         </button>
         <button type="button" style={{ ...UI.btnGhost, width: "100%", marginTop: 8, padding: "10px 0" }} onClick={onCancel}>
-          Cancel
+          {t("buy.cancel")}
         </button>
       </div>
     </div>
