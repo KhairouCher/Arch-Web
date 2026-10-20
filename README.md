@@ -120,6 +120,14 @@ Everything is drawn to one `<canvas>` in `renderCanvas()`, coalesced by
 `scheduleRender()`. A watermark is drawn on every model the signed-in user has
 not bought. Export re-runs `renderCanvas(true)` at full size.
 
+While an export runs, `components/ExportProgress.jsx` shows the stage (loading the
+full-size images, rendering, writing the file), a bar and the expected time left.
+`editor/lib/exportProgress.js` holds the pure parts (tested): the time left comes
+from the speed of the last exports per megapixel, kept in localStorage, with a
+placeholder default (150 ms per megapixel) before the first one. Rendering and
+encoding block the page, so the bar moves between stages, not within them. The
+server export (T-023) will replace this with real job progress.
+
 ## Known gaps
 
 No real accounts or payment. Drafts are saved in the browser only (see Drafts above), so

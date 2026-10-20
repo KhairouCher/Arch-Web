@@ -15,6 +15,8 @@ import PlaceholderOverlay from "./components/PlaceholderOverlay";
 import TextLayerRow from "./components/TextLayerRow";
 import LayerRow from "./components/LayerRow";
 import BuyModal from "./components/BuyModal";
+import ExportProgress from "./components/ExportProgress";
+import { DEFAULT_MS_PER_MP, expectedTotalMs, loadSpeed, rememberSpeed, saveSpeed } from "./lib/exportProgress";
 
 // A page as it starts: every zone empty, text at its default, layers in template order.
 function freshPage(data) {
@@ -77,6 +79,7 @@ export default function TemplateEditor() {
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState(null);
   const [exporting,    setExporting]    = useState(false);
+  const [exportProgress, setExportProgress] = useState(null); // { stage, done, total, startedAt, format, expectedMs } while an export runs
   const [loadedCount,  setLoadedCount]  = useState(0);
   const [dropIndicator, setDropIndicator] = useState(null); // { name, position: "above"|"below" } — sidebar drag target
   const [showPaywall,  setShowPaywall]  = useState(false);  // the buy dialog
@@ -886,7 +889,7 @@ export default function TemplateEditor() {
   // The export must use the full-size layers, but the editor only holds the
   // small previews. Loads the full-size set on demand, for the export only.
   // (Until the server renders exports, T-023, this peak memory is unavoidable.)
-  async function loadFullImages(tmpl) {
+  async function loadFullImages(tmpl, onProgress) {
     const base = templateBaseRef.current;
     const load = (p) => new Promise((resolve) => {
       const img = new Image();
@@ -894,64 +897,97 @@ export default function TemplateEditor() {
       img.onerror = () => resolve(null);
       img.src = `${base}/${p}`;
     });
+    // Every distinct file, so progress can be counted.
+    const wanted = new Set();
+    for (const l of flattenLayers(tmpl.layers)) if (l.imagePath) wanted.add(l.imagePath);
+    for (const p of tmpl.placeholders) { if (p.clipPath) wanted.add(p.clipPath); if (p.shadowPath) wanted.add(p.shadowPath); }
+    const loaded = {};
+    let done = 0;
+    onProgress?.(0, wanted.size);
+    for (const path of wanted) {
+      loaded[path] = await load(path);
+      onProgress?.(++done, wanted.size);
+    }
     const layers = {}, clips = {}, shadows = {};
-    for (const l of flattenLayers(tmpl.layers)) if (l.imagePath && !layers[l.imagePath]) layers[l.imagePath] = await load(l.imagePath);
+    for (const l of flattenLayers(tmpl.layers)) if (l.imagePath) layers[l.imagePath] = loaded[l.imagePath];
     for (const p of tmpl.placeholders) {
-      if (p.clipPath   && !clips[p.clipPath])     clips[p.clipPath]     = await load(p.clipPath);
-      if (p.shadowPath && !shadows[p.shadowPath]) shadows[p.shadowPath] = await load(p.shadowPath);
+      if (p.clipPath)   clips[p.clipPath]     = loaded[p.clipPath];
+      if (p.shadowPath) shadows[p.shadowPath] = loaded[p.shadowPath];
     }
     return { layers, clips, shadows };
   }
 
   // ── Export — renders at full PSD resolution ──────────────────────────────
+  // Shows a progress bar with the stage and the expected time (T-025): loading the
+  // full-size images, rendering, then encoding. The time left comes from how fast
+  // the last exports ran, per megapixel of the page.
   async function performExport(format) {
     const tmpl = templateRef.current;
     if (!tmpl) return;
-    setExporting(true);
-    await loadFonts(textLayersRef.current.map((t) => t.font));
-    await new Promise((r) => setTimeout(r, 50));
-
-    // Create an offscreen full-res canvas
-    const fullCanvas    = document.createElement("canvas");
+    const startedAt = Date.now();
     const { canvasWidth, canvasHeight } = tmpl.meta;
-    fullCanvas.width    = canvasWidth;
-    fullCanvas.height   = canvasHeight;
+    const megapixels = (canvasWidth * canvasHeight) / 1e6;
+    const speed = loadSpeed();
+    const expectedMs = expectedTotalMs(speed || DEFAULT_MS_PER_MP, megapixels);
+    const stage = (stage, extra) => setExportProgress((p) => ({ ...(p || { startedAt, format, expectedMs, done: 0, total: 0 }), stage, ...extra }));
+    const paint = () => new Promise((r) => setTimeout(r, 60)); // let the bar draw before the page is blocked
 
-    // Templates with previews: swap in the full-size images for this render only.
-    const previewImgs = tmpl.meta.previews
-      ? { layers: layerImgsRef.current, clips: clipImgsRef.current, shadows: shadowImgsRef.current }
-      : null;
-    if (previewImgs) {
-      const full = await loadFullImages(tmpl);
-      layerImgsRef.current = full.layers; clipImgsRef.current = full.clips; shadowImgsRef.current = full.shadows;
-    }
-
-    // Temporarily swap canvasRef to the full-res canvas, render, then swap back
-    const originalCanvas     = canvasRef.current;
-    canvasRef.current        = fullCanvas;
+    setExporting(true);
+    stage(tmpl.meta.previews ? "loading" : "rendering");
+    let fullCanvas = null;
+    let blob = null;
     try {
-      renderCanvas(true);  // full = true → previewScale = 1
-    } finally {
-      canvasRef.current      = originalCanvas;
-      if (previewImgs) {
-        layerImgsRef.current = previewImgs.layers; clipImgsRef.current = previewImgs.clips; shadowImgsRef.current = previewImgs.shadows;
-      }
-    }
+      await loadFonts(textLayersRef.current.map((t) => t.font));
+      await paint();
 
-    const mimeType = format === "jpg" ? "image/jpeg" : "image/png";
-    fullCanvas.toBlob(
-      (blob) => {
+      // Create an offscreen full-res canvas
+      fullCanvas = document.createElement("canvas");
+      fullCanvas.width  = canvasWidth;
+      fullCanvas.height = canvasHeight;
+
+      // Templates with previews: swap in the full-size images for this render only.
+      const previewImgs = tmpl.meta.previews
+        ? { layers: layerImgsRef.current, clips: clipImgsRef.current, shadows: shadowImgsRef.current }
+        : null;
+      if (previewImgs) {
+        const full = await loadFullImages(tmpl, (done, total) => stage("loading", { done, total }));
+        layerImgsRef.current = full.layers; clipImgsRef.current = full.clips; shadowImgsRef.current = full.shadows;
+      }
+
+      stage("rendering");
+      await paint();
+
+      // Temporarily swap canvasRef to the full-res canvas, render, then swap back
+      const originalCanvas = canvasRef.current;
+      canvasRef.current    = fullCanvas;
+      try {
+        renderCanvas(true);  // full = true → previewScale = 1
+      } finally {
+        canvasRef.current    = originalCanvas;
+        if (previewImgs) {
+          layerImgsRef.current = previewImgs.layers; clipImgsRef.current = previewImgs.clips; shadowImgsRef.current = previewImgs.shadows;
+        }
+      }
+
+      stage("encoding");
+      await paint();
+      const mimeType = format === "jpg" ? "image/jpeg" : "image/png";
+      blob = await new Promise((resolve) => fullCanvas.toBlob(resolve, mimeType, format === "jpg" ? 0.95 : undefined));
+
+      if (blob) {
         const url = URL.createObjectURL(blob);
         const a   = document.createElement("a");
         a.href = url; a.download = `presentation.${format}`; a.click();
         URL.revokeObjectURL(url);
-        setExporting(false);
-        // Re-render the preview canvas
-        renderCanvas();
-      },
-      mimeType,
-      format === "jpg" ? 0.95 : undefined
-    );
+        saveSpeed(rememberSpeed(speed, Date.now() - startedAt, megapixels));
+        stage("done", { finishedAt: Date.now() });
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+    } finally {
+      setExportProgress(null);
+      setExporting(false);
+      renderCanvas(); // re-render the preview canvas
+    }
   }
 
   // Throws the saved draft away and reopens the model from scratch.
@@ -1180,6 +1216,7 @@ export default function TemplateEditor() {
           e.target.value = "";
         }}
       />
+      {exportProgress && <ExportProgress progress={exportProgress} />}
       {showPaywall && model && (
         <BuyModal
           model={effectiveModel(model)}

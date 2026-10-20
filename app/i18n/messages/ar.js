@@ -294,6 +294,17 @@ const messages = {
   "draft.colDeleted": "تاريخ الحذف",
   "dash.yourDrafts": "مسوّداتك",
   "dash.noDrafts": "لا مسوّدات بعد. يُحفظ عملك تلقائيًا أثناء التعديل.",
+
+  "unit.seconds": "{s} ث",
+  "export.title": "جارٍ تجهيز التصدير",
+  "export.done": "التصدير جاهز",
+  "export.doneText": "بدأ التنزيل.",
+  "export.loading": "جارٍ تحميل الصور بالحجم الكامل ({done} من {total})",
+  "export.rendering": "جارٍ إخراج الصفحة بالدقّة الكاملة",
+  "export.encoding": "جارٍ كتابة ملف {format}",
+  "export.estimating": "جارٍ تقدير الوقت...",
+  "export.left": "متبقٍّ نحو {time}",
+  "export.note": "قد تستغرق الصفحة الكبيرة حتى دقيقة. أبقِ هذا التبويب مفتوحًا.",
 };
 
 export default messages;

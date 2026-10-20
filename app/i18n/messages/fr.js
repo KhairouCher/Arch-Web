@@ -280,6 +280,17 @@ const messages = {
   "draft.colDeleted": "Supprimé le",
   "dash.yourDrafts": "Vos brouillons",
   "dash.noDrafts": "Aucun brouillon pour le moment. Votre travail est enregistré automatiquement pendant que vous modifiez.",
+
+  "unit.seconds": "{s} s",
+  "export.title": "Préparation de votre export",
+  "export.done": "Export prêt",
+  "export.doneText": "Votre téléchargement a commencé.",
+  "export.loading": "Chargement des images en pleine taille ({done} sur {total})",
+  "export.rendering": "Rendu de la page en pleine résolution",
+  "export.encoding": "Écriture du fichier {format}",
+  "export.estimating": "Estimation du temps...",
+  "export.left": "Environ {time} restantes",
+  "export.note": "Une grande page peut prendre jusqu’à une minute. Gardez cet onglet ouvert.",
 };
 
 export default messages;

@@ -282,6 +282,17 @@ const messages = {
   "draft.colDeleted": "Deleted on",
   "dash.yourDrafts": "Your drafts",
   "dash.noDrafts": "No drafts yet. Your work is saved automatically while you edit.",
+
+  "unit.seconds": "{s} s",
+  "export.title": "Preparing your export",
+  "export.done": "Export ready",
+  "export.doneText": "Your download has started.",
+  "export.loading": "Loading the full-size images ({done} of {total})",
+  "export.rendering": "Rendering the page at full resolution",
+  "export.encoding": "Writing the {format} file",
+  "export.estimating": "Estimating the time...",
+  "export.left": "About {time} left",
+  "export.note": "A large page can take up to a minute. Keep this tab open.",
 };
 
 export default messages;
