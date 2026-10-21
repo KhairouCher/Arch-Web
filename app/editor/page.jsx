@@ -89,7 +89,7 @@ export default function TemplateEditor() {
   const [pageIndex,    setPageIndex]    = useState(0);
   const [saveStatus,   setSaveStatus]   = useState(null);  // null | { kind: "saving" | "saved" | "restored" | "guest", at?, expiresAt? }
   const { user, balance } = useSession();
-  const { t, dir, fmt } = useI18n();
+  const { t, fmt } = useI18n();
   const modelIdRef = useRef("template");
   const modelNameRef = useRef("");
   const draftRef = useRef(null);        // the saved draft this session started from, then the latest save
@@ -1172,7 +1172,7 @@ export default function TemplateEditor() {
                 style={{ ...S.navArrow, borderInlineEnd: "1px solid var(--line)", ...(pageIndex === 0 ? S.navArrowDisabled : null) }}
                 disabled={pageIndex === 0}
                 onClick={() => goToPage(-1)}
-              >{dir === "rtl" ? "›" : "‹"}</button>
+              >‹</button>
             )}
 
             <div style={S.canvasArea} ref={containerRef}>
@@ -1200,7 +1200,7 @@ export default function TemplateEditor() {
                 style={{ ...S.navArrow, borderInlineStart: "1px solid var(--line)", ...(pageIndex === model.pages.length - 1 ? S.navArrowDisabled : null) }}
                 disabled={pageIndex === model.pages.length - 1}
                 onClick={() => goToPage(1)}
-              >{dir === "rtl" ? "‹" : "›"}</button>
+              >›</button>
             )}
           </div>
         </div>
