@@ -47,7 +47,7 @@ export default function AdminQueueClient() {
               <tr key={j.id}>
                 <td style={{ ...UI.td, ...UI.mono }}>{j.id}</td>
                 <td style={UI.td}>{j.source}</td>
-                <td style={UI.td}><span style={UI.badge(STATUS_BADGE[j.status])}>{t(`status.${j.status}`)}</span></td>
+                <td style={UI.td}><span style={UI.badge(STATUS_BADGE[j.status])}>{t(`status.${j.status}`)}</span>{j.errorKey && <div style={{ ...UI.small, color: "var(--danger)", marginTop: 4, maxWidth: 320 }}>{t(j.errorKey)}</div>}</td>
                 <td style={UI.td}>{fmt.date(j.queuedAt)}</td>
                 <td style={UI.td}>{fmt.duration(j.estimatedSeconds)}</td>
                 <td style={UI.td}>

@@ -8,7 +8,11 @@ const TABS = [
   ["templates", "/admin"],
   ["models", "/admin/models"],
   ["points", "/admin/points"],
+  ["bundles", "/admin/bundles"],
+  ["purchases", "/admin/purchases"],
+  ["users", "/admin/users"],
   ["queue", "/admin/queue"],
+  ["activity", "/admin/activity"],
 ];
 
 export default function AdminTabs({ active }) {

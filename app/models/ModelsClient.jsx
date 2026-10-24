@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { UI } from "../lib/ui";
 import { useSession } from "../lib/useSession";
-import { effectiveModel, hasPurchased } from "../lib/mockStore";
+import { allModels, hasPurchased } from "../lib/mockStore";
 import { useI18n } from "../i18n/I18nProvider";
 
 // The model cards. The model files give the first render (the same on the
@@ -12,7 +12,7 @@ import { useI18n } from "../i18n/I18nProvider";
 export default function ModelsClient({ models }) {
   const { ready, user } = useSession();
   const { t, fmt } = useI18n();
-  const list = (ready ? models.map(effectiveModel) : models).filter((m) => m.published);
+  const list = (ready ? allModels(models) : models).filter((m) => m.published);
 
   return (
     <main style={UI.main}>

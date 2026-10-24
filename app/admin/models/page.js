@@ -1,18 +1,12 @@
-import AppBar from "../../components/AppBar";
-import AdminTabs from "../../components/AdminTabs";
-import AdminOnly from "../../components/AdminOnly";
+import AdminShell from "../../components/AdminShell";
 import { getModels } from "../../lib/models";
-import { UI } from "../../lib/ui";
+import { getTemplates } from "../../lib/templates";
 import AdminModelsClient from "./AdminModelsClient";
 
 export default function AdminModelsPage() {
   return (
-    <div style={UI.page}>
-      <AppBar active="admin" />
-      <AdminTabs active="models" />
-      <AdminOnly>
-        <AdminModelsClient models={getModels()} />
-      </AdminOnly>
-    </div>
+    <AdminShell active="models">
+      <AdminModelsClient models={getModels()} templates={getTemplates().map((t) => ({ id: t.id, source: t.source }))} />
+    </AdminShell>
   );
 }

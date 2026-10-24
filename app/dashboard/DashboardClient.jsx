@@ -6,7 +6,7 @@ import Link from "next/link";
 import AppBar from "../components/AppBar";
 import { UI } from "../lib/ui";
 import { useSession } from "../lib/useSession";
-import { effectiveModel, listLedger, listPurchases } from "../lib/mockStore";
+import { allModels, listLedger, listPurchases } from "../lib/mockStore";
 import { useI18n } from "../i18n/I18nProvider";
 import { ledgerReason } from "../lib/ledgerText";
 import { deleteDraft, listDrafts, purgeExpiredDrafts } from "../lib/mockDrafts";
@@ -30,7 +30,7 @@ export default function DashboardClient({ models }) {
   const drafts = listDrafts(user.id);
   const purchases = listPurchases(user.id);
   const recent = listLedger(user.id).slice(0, 5);
-  const available = models.map(effectiveModel).filter((m) => m.published);
+  const available = allModels(models).filter((m) => m.published);
 
   return (
     <div style={UI.page}>

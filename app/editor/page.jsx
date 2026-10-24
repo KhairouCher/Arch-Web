@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { PLACEHOLDER_COLORS, PREVIEW_WIDTH } from "./lib/constants";
 import { flattenLayers, drawImageInBounds, buildFont, traceMaskContour, wrapText, getTextBounds, drawWatermark, textDirection, loadFonts } from "./lib/canvas";
 import { getUser } from "../lib/mockAuth";
-import { effectiveModel, hasPurchased, spendPoints } from "../lib/mockStore";
+import { effectiveModel, getCustomModel, hasPurchased, spendPoints } from "../lib/mockStore";
 import { useSession } from "../lib/useSession";
 import { getDraft, saveDraft, deleteDraft, purgeExpiredDrafts, draftId } from "../lib/mockDrafts";
 import { photoKey, putPhoto, getPhoto, deletePhoto } from "../lib/photoStore";
@@ -275,8 +275,11 @@ export default function TemplateEditor() {
 
     const manifest = modelId
       ? fetch(`/models/${modelId}.json`).then((r) => {
-          if (!r.ok) throw new Error(`model "${modelId}" not found`);
-          return r.json();
+          if (r.ok) return r.json();
+          // not a file: a model created in the admin (lib/mockStore.js)
+          const custom = getCustomModel(modelId);
+          if (custom) return custom;
+          throw new Error(`model "${modelId}" not found`);
         })
       : Promise.resolve({ name: templateParam, pages: [{ name: "Page 1", template: templateParam }] });
 

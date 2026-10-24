@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import AppBar from "../components/AppBar";
 import { UI } from "../lib/ui";
 import { useSession } from "../lib/useSession";
-import { BUNDLES, listLedger } from "../lib/mockStore";
+import { bundleName, getBundles, listLedger } from "../lib/mockStore";
 import { useI18n } from "../i18n/I18nProvider";
 import { ledgerReason } from "../lib/ledgerText";
 
@@ -39,9 +39,9 @@ export default function WalletClient() {
         <h2 style={UI.h2}>{t("wallet.topupTitle")}</h2>
         <p style={{ ...UI.muted, marginBottom: 12 }}>{t("wallet.topupText")}</p>
         <div style={UI.grid}>
-          {BUNDLES.map((b) => (
+          {getBundles().map((b) => (
             <div key={b.id} style={{ ...UI.card, display: "grid", gap: 6 }}>
-              <b style={{ color: "var(--ink)" }}>{t(`bundle.${b.id}`)}</b>
+              <b style={{ color: "var(--ink)" }}>{bundleName(b, t)}</b>
               <span style={{ fontSize: "var(--fs-22)", color: "var(--ink)", fontWeight: 600 }}>{fmt.da(b.priceDa)}</span>
               <span style={UI.badge("go")}>{fmt.points(b.points)}</span>
               <span style={UI.small}>{t("wallet.perDa", { rate: (b.points / b.priceDa).toFixed(2) })}</span>
@@ -55,13 +55,14 @@ export default function WalletClient() {
         ) : (
           <div style={UI.tableWrap}>
             <table style={UI.table}>
-              <thead><tr>{["col.date", "col.type", "col.reason", "col.points"].map((h) => <th key={h} style={UI.th}>{t(h)}</th>)}</tr></thead>
+              <thead><tr>{["col.date", "col.type", "col.reason", "col.paid", "col.points"].map((h) => <th key={h} style={UI.th}>{t(h)}</th>)}</tr></thead>
               <tbody>
                 {history.map((e) => (
                   <tr key={e.id}>
                     <td style={UI.td}>{fmt.date(e.createdAt)}</td>
                     <td style={UI.td}><span style={UI.badge(KIND_BADGE[e.kind])}>{t(`kind.${e.kind}`)}</span></td>
                     <td style={UI.td}>{ledgerReason(e, t)}</td>
+                    <td style={UI.td}>{e.paymentMethod ? `${t(`pay.${e.paymentMethod}`)}${e.paymentReference ? ` · ${e.paymentReference}` : ""}` : "—"}</td>
                     <td style={{ ...UI.td, color: e.amount < 0 ? "var(--ink-body)" : "var(--go)", fontWeight: 600 }}>
                       {e.amount > 0 ? "+" : ""}{fmt.number(e.amount)}
                     </td>
