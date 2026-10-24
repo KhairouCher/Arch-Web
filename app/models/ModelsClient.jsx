@@ -27,10 +27,11 @@ export default function ModelsClient({ models }) {
             const owned = ready && user && hasPurchased(user.id, m.id);
             return (
               <div key={m.id} style={{ ...UI.card, padding: 0, overflow: "hidden" }}>
-                <div style={S.thumb}>
+                <div style={{ ...S.thumb, backgroundImage: `url(/templates/${m.pages[0]?.template}/previews/thumbnail.jpg)` }}>
+                  {!owned && <span style={S.mark} aria-hidden="true" />}
                   <span style={{ ...UI.badge("accent"), position: "absolute", top: 10, insetInlineStart: 10 }}>{t(`tier.${m.tier}`)}</span>
                   <span style={{ ...UI.badge(owned ? "go" : "go"), position: "absolute", top: 10, insetInlineEnd: 10 }}>{owned ? t("models.owned") : fmt.points(m.pricePoints)}</span>
-                  <span style={UI.mono}>{t("models.pages", { count: m.pages.length })}</span>
+                  <span style={{ ...UI.mono, position: "absolute", insetInlineStart: 10, bottom: 10, background: "var(--surface)", padding: "2px 8px", borderRadius: 6 }}>{t("models.pages", { count: m.pages.length })}</span>
                 </div>
                 <div style={{ padding: "14px 16px", display: "grid", gap: 8 }}>
                   <b style={{ color: "var(--ink)", fontSize: "var(--fs-15)" }}>{m.name}</b>
@@ -52,6 +53,13 @@ export default function ModelsClient({ models }) {
 const S = {
   thumb: {
     position: "relative", aspectRatio: "4 / 3", background: "var(--accent-bg)", color: "var(--ink-subtle)",
-    display: "flex", alignItems: "center", justifyContent: "center",
+    backgroundSize: "cover", backgroundPosition: "center",
+  },
+  // The watermark on a model that is not bought yet: "ArchPresent" tiled across the picture.
+  mark: {
+    position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.55,
+    backgroundImage: `url("data:image/svg+xml;utf8,${encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="180" height="110"><text x="90" y="60" text-anchor="middle" transform="rotate(-24 90 55)" font-family="sans-serif" font-size="17" font-weight="700" letter-spacing="2" fill="white" stroke="rgba(0,0,0,0.35)" stroke-width="0.6">ArchPresent</text></svg>'
+    )}")`,
   },
 };
