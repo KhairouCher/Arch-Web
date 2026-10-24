@@ -27,8 +27,8 @@ export default function SignupPage() {
       return;
     }
     // No real auth yet — see app/lib/mockAuth.js.
-    mockSignIn(name, email);
-    router.push("/dashboard");
+    mockSignIn(name, email, { verified: false }); // a new account must confirm its email before buying
+    router.push("/verify");
   }
 
   return (

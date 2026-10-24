@@ -12,7 +12,8 @@ export default function BuyModal({ model, pages, visited, user, balance, error, 
   const price = model.pricePoints;
   const unseen = pages.map((p, i) => ({ ...p, i })).filter((p) => !visited.has(p.i));
   const enough = balance >= price;
-  const canBuy = !!user && unseen.length === 0 && enough;
+  const confirmed = !!user && user.verified !== false;
+  const canBuy = confirmed && unseen.length === 0 && enough;
 
   return (
     <div style={S.backdrop} onClick={onCancel}>
@@ -43,6 +44,11 @@ export default function BuyModal({ model, pages, visited, user, balance, error, 
         {!user && (
           <div style={{ ...UI.notice("warn"), marginTop: 14 }}>
             {t("buy.signInPrompt")} <Link href="/login" style={{ textDecoration: "underline" }}>{t("buy.signInLink")}</Link>
+          </div>
+        )}
+        {user && !confirmed && (
+          <div style={{ ...UI.notice("warn"), marginTop: 14 }}>
+            {t("buy.unverified")} <Link href="/verify" style={{ textDecoration: "underline" }}>{t("buy.confirmLink")}</Link>
           </div>
         )}
         {user && !enough && (

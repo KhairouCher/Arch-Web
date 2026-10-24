@@ -32,7 +32,7 @@ export default function AppBar({ active }) {
       {ready && user && (
         <>
           <Link href="/wallet" style={UI.badge("go")}>{fmt.points(balance)}</Link>
-          <span style={UI.muted}>{user.email}</span>
+          <Link href="/account" style={{ ...UI.muted, textDecoration: "underline" }} title={t("nav.account")}>{user.email}</Link>
           <button style={UI.btnGhost} onClick={() => { mockSignOut(); router.push("/login"); }}>{t("nav.signOut")}</button>
         </>
       )}

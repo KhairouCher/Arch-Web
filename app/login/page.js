@@ -21,7 +21,11 @@ export default function LoginPage() {
       return;
     }
     // No real auth yet — see app/lib/mockAuth.js.
-    mockSignIn(email.split("@")[0], email);
+    const result = mockSignIn(email.split("@")[0], email);
+    if (result.error) {
+      setError(t("err.disabled"));
+      return;
+    }
     router.push("/dashboard");
   }
 
@@ -52,6 +56,8 @@ export default function LoginPage() {
             style={S.input}
             placeholder="••••••••"
           />
+
+          <p style={{ ...S.switchText, textAlign: "start", marginTop: 8 }}><Link href="/forgot-password" style={S.switchLink}>{t("login.forgot")}</Link></p>
 
           {error && <p style={S.error}>{error}</p>}
 
