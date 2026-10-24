@@ -41,15 +41,24 @@ admin. `buyer1@example.com` starts with 20,000 points.
 | Route | What it is |
 |---|---|
 | `/` | Marketing homepage |
-| `/models` | Gallery of models: tier, price in points, page list |
-| `/editor?model=<id>` | The editor. `<id>` is a file in `public/models/`. `?template=<name>` still opens a single template as a one-page model |
-| `/login`, `/signup` | Mock sign-in |
-| `/dashboard` | Balance, models you own, recent points activity |
-| `/wallet` | Balance, bundles on offer, how to top up, full history |
-| `/admin` | Templates on disk (admin only) |
-| `/admin/models` | Set each model's tier, price in points and visibility |
-| `/admin/points` | Top up or adjust a buyer's points (append-only history) |
-| `/admin/queue` | Conversion queue with the expected finish time (demo) |
+| `/models` | Gallery of models: watermarked picture (`previews/thumbnail.jpg`), tier, price in points, page list |
+| `/editor?model=<id>` | The editor. `<id>` is a file in `public/models/` or a model made in the admin. `?template=<name>` still opens a single template as a one-page model |
+| `/login`, `/signup` | Mock sign-in. Sign-up leads to `/verify` |
+| `/verify`, `/forgot-password`, `/reset-password` | Email confirmation and password reset (placeholder links) |
+| `/account` | Profile, language, delete my account |
+| `/dashboard` | Balance, models you own, drafts, recent points activity |
+| `/wallet` | Balance, bundles on offer, how to top up, full history with how each top-up was paid |
+| `/privacy`, `/terms`, `/contact` | Draft legal and help pages in three languages (text to be approved by the client) |
+| `/admin` | Templates on disk with the review state and the fast-path form (admin only) |
+| `/admin/models` | Create a model from pages, rename, order, set tier, price and visibility |
+| `/admin/points` | Top up (with how it was paid and a reference) or adjust a buyer's points |
+| `/admin/bundles` | Create, edit and switch off top-up bundles |
+| `/admin/purchases` | List of purchases |
+| `/admin/users` | Change a role, disable an account |
+| `/admin/queue` | Conversion queue with the expected finish time and a sample validator report (demo) |
+| `/admin/activity` | Audit log and email receipts with resend |
+
+Any other address shows `app/not-found.js`; a page that fails shows `app/error.js`.
 
 ## How it is organised
 
